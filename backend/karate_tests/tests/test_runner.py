@@ -13,6 +13,7 @@ FIXTURES_DIR = os.path.join(os.path.dirname(__file__), 'fixtures')
 SAMPLE_REPORT = os.path.join(FIXTURES_DIR, 'simple_feature_report.html')
 OVERVIEW_REPORT = os.path.join(FIXTURES_DIR, 'overview_no_data.html')
 MALFORMED_REPORT = os.path.join(FIXTURES_DIR, 'malformed_data.html')
+CALLER_REPORT = os.path.join(FIXTURES_DIR, 'caller_feature_report.html')
 
 
 class ValidateReportsDirTests(SimpleTestCase):
@@ -122,6 +123,45 @@ class ExtractApiStepsTests(SimpleTestCase):
         self.assertEqual(get_step['status_code'], '200')
 
 
+class ExtractApiStepsWithCallResultsTests(SimpleTestCase):
+    """Real Karate report where the scenario's first step is
+    `created = call read('called.feature') {...}` -- the called feature
+    makes its own API call before the caller makes its own."""
+
+    def setUp(self):
+        self.feature = runner.parse_report_file(CALLER_REPORT)
+        self.scenario = self.feature['scenarios'][0]
+
+    def test_includes_calls_made_by_the_called_feature(self):
+        steps = runner.extract_api_steps(self.scenario)
+        # POST happens inside called.feature; GET is the caller's own step.
+        self.assertEqual([s['method'] for s in steps], ['POST', 'GET'])
+
+    def test_order_matches_actual_execution_order(self):
+        steps = runner.extract_api_steps(self.scenario)
+        self.assertIn('/api/todos', steps[0]['url'])
+        self.assertNotIn('/api/todos/', steps[0]['url'])  # the create call, no id in path
+        self.assertIn('/api/todos/', steps[1]['url'])  # the caller's own fetch-by-id
+
+    def test_called_feature_step_has_correct_data(self):
+        steps = runner.extract_api_steps(self.scenario)
+        created = steps[0]
+        self.assertEqual(created['status_code'], '201')
+        self.assertIn('"title": "from-caller"', created['response_body'])
+        self.assertIn('curl -X POST', created['curl'])
+
+    def test_caller_own_step_has_correct_data(self):
+        steps = runner.extract_api_steps(self.scenario)
+        fetched = steps[1]
+        self.assertEqual(fetched['status_code'], '200')
+        self.assertIn('"title": "from-caller"', fetched['response_body'])
+
+    def test_build_test_cases_includes_both_steps(self):
+        cases = runner.build_test_cases(self.feature)
+        self.assertEqual(len(cases), 1)
+        self.assertEqual(len(cases[0]['steps']), 2)
+
+
 class BuildTestCasesTests(SimpleTestCase):
     def test_builds_one_case_per_scenario_named_with_scenario_name_only(self):
         feature = runner.parse_report_file(SAMPLE_REPORT)
@@ -229,6 +269,26 @@ class GenerateTests(TestCase):
             merged_ranges = {str(r) for r in ws.merged_cells.ranges}
             for col_letter in ('A', 'B', 'C', 'D', 'E', 'K', 'L'):
                 self.assertIn(f'{col_letter}2:{col_letter}6', merged_ranges)
+
+    def test_end_to_end_includes_steps_from_called_feature(self):
+        with tempfile.TemporaryDirectory() as reports_dir, tempfile.TemporaryDirectory() as out_dir:
+            shutil.copy(CALLER_REPORT, os.path.join(reports_dir, 'caller.html'))
+            excel_path = os.path.join(out_dir, 'cases.xlsx')
+            job = self._make_job(reports_dir, excel_path)
+
+            runner.generate(job)
+            job.refresh_from_db()
+
+            self.assertEqual(job.status, KarateTestCaseJob.STATUS_COMPLETED)
+            self.assertEqual(job.scenario_count, 1)
+            self.assertEqual(job.step_count, 2)
+
+            wb = load_workbook(excel_path)
+            ws = wb.active
+            rows = list(ws.iter_rows(min_row=2, values_only=True))
+            self.assertEqual(len(rows), 2)
+            self.assertIn('curl -X POST', rows[0][7])
+            self.assertIn('curl -X GET', rows[1][7])
 
     def test_single_step_case_has_no_merge(self):
         with tempfile.TemporaryDirectory() as reports_dir, tempfile.TemporaryDirectory() as out_dir:

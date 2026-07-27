@@ -13,9 +13,12 @@ request/response text Karate logged, which we parse back into method, url,
 headers, body, status code, and response body -- from which we can
 reconstruct an equivalent curl command.
 
-Known limitation: only scans the scenario's own top-level steps, not calls
-to other feature files (Karate's `call`/`callSingle`), so requests made
-inside a called feature aren't included as separate steps.
+A step that calls another feature (Karate's `call`/`callSingle`, typically
+on a `def` step) carries `hasCallResults`/`callResults` -- each entry in
+`callResults` is itself a full feature-shaped dict (its own `scenarios` /
+`steps`), since Karate executes it synchronously at that point. We walk
+those recursively too, so API calls made inside a called feature show up
+as their own steps, inlined in the exact order they actually ran.
 """
 import glob
 import json
@@ -175,10 +178,25 @@ def build_curl(method, url, headers, body):
     return ' '.join(parts)
 
 
-def extract_api_steps(scenario):
-    """Returns one dict per HTTP call the scenario made, in execution order."""
-    steps = []
+def _iter_all_steps(scenario):
+    """Yields a scenario's steps in execution order, inlining the steps of
+    any called feature's scenarios at the point where the call happened
+    (Karate runs `call`/`callSingle` synchronously right there) -- so a
+    caller's own steps and everything a called feature did come out as one
+    flat, correctly-ordered sequence, however many calls deep."""
     for step in scenario.get('steps', []):
+        yield step
+        if step.get('hasCallResults'):
+            for call_result in step.get('callResults') or []:
+                for called_scenario in call_result.get('scenarios', []):
+                    yield from _iter_all_steps(called_scenario)
+
+
+def extract_api_steps(scenario):
+    """Returns one dict per HTTP call the scenario made (directly or via a
+    called feature), in the order they actually ran."""
+    steps = []
+    for step in _iter_all_steps(scenario):
         if step.get('keyword') != 'method':
             continue
         log_segments = step.get('logSegments') or []
