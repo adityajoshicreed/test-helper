@@ -1,0 +1,514 @@
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --border: #2a2e37;
+  --text: #e6e8eb;
+  --text-dim: #9aa1ac;
+  --accent: #4f8cff;
+  --green: #3fb950;
+  --orange: #d29922;
+  --red: #f85149;
+  --purple: #c084fc;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.app-header h1 {
+  font-size: 20px;
+  margin: 0;
+  display: inline;
+}
+
+.app-header .brand {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.app-header .brand:hover {
+  border-color: transparent;
+}
+
+.breadcrumb-sep {
+  font-size: 16px;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.tool-subnav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+button {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button.secondary {
+  background: transparent;
+}
+
+.curl-import-form,
+.parsed-request-view,
+.test-run-results,
+.history-page,
+.jmeter-form,
+.jmeter-job-status {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.curl-import-form label,
+.jmeter-form label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.jmeter-form label {
+  margin-top: 16px;
+}
+
+.jmeter-form label:first-of-type {
+  margin-top: 0;
+}
+
+.jmeter-form input[type='text'],
+.jmeter-form input[type='file'] {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.jmeter-form button[type='submit'] {
+  margin-top: 16px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.jmeter-job-status h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.curl-import-form textarea {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.curl-import-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.error-text {
+  color: var(--red);
+  font-size: 14px;
+}
+
+.parsed-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.method-badge {
+  font-weight: 600;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.url-text {
+  font-family: ui-monospace, monospace;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
+details {
+  margin-bottom: 10px;
+}
+
+.dynamic-headers-note {
+  font-size: 12px;
+  color: var(--orange);
+  background: rgba(210, 153, 34, 0.1);
+  border: 1px solid rgba(210, 153, 34, 0.3);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 0 0 12px;
+}
+
+.dynamic-headers-note code {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-right: 4px;
+  font-family: ui-monospace, monospace;
+}
+
+details summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+legend {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.group-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0 0 8px;
+}
+
+fieldset label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+fieldset label.disabled {
+  color: var(--text-dim);
+}
+
+.na-tag {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.field-test-matrix {
+  margin-bottom: 16px;
+}
+
+.matrix-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.matrix-actions button {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.matrix-scroll {
+  overflow-x: auto;
+}
+
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.matrix-table th,
+.matrix-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: center;
+}
+
+.matrix-table th:first-child,
+.matrix-row-label {
+  text-align: left;
+}
+
+.matrix-row-label {
+  font-family: ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+.na-dash {
+  color: var(--text-dim);
+}
+
+.run-button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.test-run-progress {
+  margin-bottom: 16px;
+}
+
+.progress-bar-track {
+  width: 100%;
+  height: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.progress-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 8px 0 0;
+}
+
+.current-row {
+  background: rgba(79, 140, 255, 0.08);
+}
+
+.outcome-pending {
+  background: rgba(154, 161, 172, 0.15);
+  color: var(--text-dim);
+}
+
+.results-summary {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.summary-item {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.results-table th {
+  text-align: left;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  padding: 8px;
+}
+
+.results-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 8px;
+  vertical-align: top;
+}
+
+.result-row {
+  cursor: pointer;
+}
+
+.result-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.url-cell {
+  font-family: ui-monospace, monospace;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.result-detail h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.outcome-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.outcome-handled {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--green);
+}
+
+.outcome-review {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--orange);
+}
+
+.outcome-error {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--red);
+}
+
+.outcome-info {
+  background: rgba(154, 161, 172, 0.15);
+  color: var(--text-dim);
+}
+
+.outcome-rate_limited {
+  background: rgba(192, 132, 252, 0.15);
+  color: var(--purple);
+}
+
+.retry-note {
+  font-size: 11px;
+  color: var(--purple);
+}
+
+.home-page {
+  text-align: left;
+}
+
+.home-intro {
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  padding: 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  position: relative;
+  white-space: normal;
+}
+
+.tool-card:not(:disabled):hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.tool-card-disabled {
+  opacity: 0.6;
+}
+
+.tool-icon {
+  font-size: 28px;
+}
+
+.tool-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.tool-description {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.tool-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: rgba(154, 161, 172, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
