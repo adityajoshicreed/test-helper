@@ -4,11 +4,12 @@ A growing collection of QA utilities behind a single home page:
 - **API Tester** — paste a curl command, pick which negative/boundary tests to run against it, and see the results for every generated variant.
 - **JMeter Report Generator** — upload a JMeter results CSV/JTL file and get back an HTML dashboard report.
 - **Karate Test Case Generator** — point it at a folder of Karate HTML execution reports and get back an Excel sheet of API test cases, one step per HTTP call.
+- **API Chain Tester** — chain multiple curl-derived requests together, passing data extracted from one response into the next, then run the same mutation-test engine against only the last one (the API actually under test).
 
 More tools (Test Case Creator, Test Data Generator, ...) will be added as separate cards on the home page over time.
 
 ## Adding a new tool
-The frontend is structured so a new tool is just: build a self-contained component under `frontend/src/tools/`, add it to the `TOOLS` registry in `frontend/src/App.jsx`, and flip its `available` flag to `true` in the catalog in `frontend/src/components/HomePage.jsx`. Each tool owns its own internal navigation/state; `App.jsx` only handles top-level routing between the home page and whichever tool is active. On the backend, each tool that needs one is its own Django app (`apitester/`, `jmeter_reporter/`, `karate_tests/`) registered in `INSTALLED_APPS` and mounted under its own `/api/<tool>/` prefix in `config/urls.py`.
+The frontend is structured so a new tool is just: build a self-contained component under `frontend/src/tools/`, add it to the `TOOLS` registry in `frontend/src/App.jsx`, and flip its `available` flag to `true` in the catalog in `frontend/src/components/HomePage.jsx`. Each tool owns its own internal navigation/state; `App.jsx` only handles top-level routing between the home page and whichever tool is active. On the backend, each tool that needs one is its own Django app (`apitester/`, `jmeter_reporter/`, `karate_tests/`, `chain_tester/`) registered in `INSTALLED_APPS` and mounted under its own `/api/<tool>/` prefix in `config/urls.py`.
 
 ## Stack
 - **Backend**: Django + Django REST Framework (SQLite), `backend/`
@@ -62,6 +63,17 @@ Click the "Karate Test Case Generator" card, then:
 3. On success you get a count of features/test cases/steps generated and the output path. Files that aren't per-feature reports (e.g. an overview/summary page) are silently skipped; files that fail to parse are listed as warnings rather than failing the whole run.
 4. Past jobs are saved and browsable under "History".
 
+## What the API Chain Tester tool does
+For APIs where one call depends on another — log in, take the token, use it to call the endpoint you actually want to test. Click the "API Chain Tester" card, then:
+1. Start a chain (optional name), then add steps one at a time as curl commands — same parser as API Tester, so anything you'd paste there works here too. Any step after the first can reference a variable from an earlier step's response with `{{varName}}` in its URL, header values, or body.
+2. Each step (except the last) also has an **extraction rule** (`{variable_name: "body.path.to.value"}`, or the special path `status_code`) and a **refresh mode**:
+   - **Once** — runs a single time per test run; its extracted value is cached and reused for every generated test of the last step. Use this for something reusable, like a login session.
+   - **Per test** — re-run fresh right before *each* generated test of the last step. Use this for something that goes stale after one use, like a one-time token — otherwise every test after the first would fail for a reason that has nothing to do with what you're actually testing.
+3. The **last step you've added is always "the API under test"** — adding another step afterward makes that new one the last step instead (the API Tester field/header matrix appears for whichever step currently holds that position). Pick mutations for it exactly as in API Tester.
+4. Running the chain executes every "once" step a single time, then for each generated test: refreshes any "per test" steps, substitutes the current values into the test's `{{var}}` placeholders, and runs it. Each result's expandable row shows the resolved request that was actually sent.
+5. If a setup step fails outright (e.g. login itself fails), the whole run stops with a clear error naming the step — nothing downstream would be meaningful. If a "per test" refresh fails for one specific generated test, only that test is marked an error; the rest of the run continues.
+6. Past chains/runs are saved and browsable under "History".
+
 ## Tests
 ```bash
 cd backend
@@ -75,3 +87,4 @@ python manage.py test
 - Test cases execute one at a time in a background thread per run (not across runs), and the frontend polls every 700ms for progress — there's no websocket/SSE push, so progress updates are near-real-time rather than instant.
 - JMeter report generation has a 600s subprocess timeout; a job that doesn't finish by then is marked failed.
 - Karate Test Case Generator only supports the modern Alpine-based Karate HTML report format (the one with an embedded `<script id="karate-data">` JSON blob).
+- API Chain Tester: a step can only be added to the end of a chain (no reordering/editing/deleting an earlier step — start a new chain instead). A header whose *name* matches the API Tester's "dynamic header" auto-regeneration pattern (`req-id`, `correlation-id`, `trace-id`, `idempotency`) has its value overwritten with a random UUID before a `{{var}}` placeholder in it would ever get substituted — fine for typical header names (`Authorization`, custom names), just avoid using a placeholder in a header named like that. A "once" step also can't depend on a value produced by a *later* "per test" step — order foundational/reusable setup before anything that needs refreshing.

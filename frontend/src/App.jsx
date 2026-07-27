@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import HomePage from './components/HomePage';
 import ApiTesterTool from './tools/ApiTesterTool';
+import ChainTesterTool from './tools/ChainTesterTool';
 import JmeterReportTool from './tools/JmeterReportTool';
 import KarateTestCaseTool from './tools/KarateTestCaseTool';
 
@@ -8,6 +9,7 @@ const TOOLS = {
   'api-tester': { name: 'API Tester', component: ApiTesterTool },
   'jmeter-report': { name: 'JMeter Report Generator', component: JmeterReportTool },
   'karate-testcases': { name: 'Karate Test Case Generator', component: KarateTestCaseTool },
+  'chain-tester': { name: 'API Chain Tester', component: ChainTesterTool },
 };
 
 export default function App() {

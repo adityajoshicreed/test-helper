@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'apitester',
     'jmeter_reporter',
     'karate_tests',
+    'chain_tester',
 ]
 
 MIDDLEWARE = [

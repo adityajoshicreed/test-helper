@@ -125,7 +125,9 @@ button.secondary {
 }
 
 .jmeter-form input[type='text'],
-.jmeter-form input[type='file'] {
+.jmeter-form input[type='file'],
+.jmeter-form textarea,
+.jmeter-form select {
   width: 100%;
   background: var(--bg);
   color: var(--text);
@@ -133,6 +135,13 @@ button.secondary {
   border-radius: 6px;
   padding: 8px 10px;
   font-size: 14px;
+  font-family: inherit;
+}
+
+.jmeter-form textarea {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  resize: vertical;
 }
 
 .jmeter-form button[type='submit'] {
@@ -143,9 +152,35 @@ button.secondary {
   font-weight: 600;
 }
 
+.jmeter-form button.secondary {
+  margin-top: 8px;
+}
+
 .jmeter-job-status h3 {
   margin: 0 0 10px;
   font-size: 15px;
+}
+
+.extract-rule-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.extract-rule-row input {
+  flex: 1;
+}
+
+.chain-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.chain-header h2 {
+  margin: 0;
 }
 
 .curl-import-form textarea {

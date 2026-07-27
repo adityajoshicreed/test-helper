@@ -22,4 +22,5 @@ urlpatterns = [
     path('api/', include('apitester.urls')),
     path('api/jmeter/', include('jmeter_reporter.urls')),
     path('api/karate/', include('karate_tests.urls')),
+    path('api/chains/', include('chain_tester.urls')),
 ]

@@ -21,6 +21,13 @@ const TOOL_CATALOG = [
     available: true,
   },
   {
+    id: 'chain-tester',
+    name: 'API Chain Tester',
+    icon: '🔗',
+    description: 'Chain multiple API calls together, passing data between them, then run mutation tests against the last one.',
+    available: true,
+  },
+  {
     id: 'test-case-creator',
     name: 'Test Case Creator',
     icon: '📝',

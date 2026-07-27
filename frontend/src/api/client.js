@@ -80,3 +80,36 @@ export function listKarateJobs() {
 export function getKarateJob(id) {
   return request(`/karate/jobs/${id}/`);
 }
+
+export function createChain(name) {
+  return request('/chains/chains/', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function getChain(id) {
+  return request(`/chains/chains/${id}/`);
+}
+
+export function addChainStep(chainId, payload) {
+  return request(`/chains/chains/${chainId}/steps/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createChainRun(chainId, selection) {
+  return request(`/chains/chains/${chainId}/runs/`, {
+    method: 'POST',
+    body: JSON.stringify(selection),
+  });
+}
+
+export function listChainRuns() {
+  return request('/chains/runs/');
+}
+
+export function getChainRun(id) {
+  return request(`/chains/runs/${id}/`);
+}
