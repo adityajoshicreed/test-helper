@@ -204,7 +204,7 @@ def build_test_cases(feature):
         api_steps = extract_api_steps(scenario)
         if not api_steps:
             continue
-        name = f"{feature_name} - {scenario.get('name', '')}".strip(' -')
+        name = scenario.get('name') or feature_name
         cases.append({'name': name, 'steps': api_steps})
     return cases
 

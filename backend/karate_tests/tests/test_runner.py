@@ -123,12 +123,26 @@ class ExtractApiStepsTests(SimpleTestCase):
 
 
 class BuildTestCasesTests(SimpleTestCase):
-    def test_builds_one_case_per_scenario_named_with_feature_prefix(self):
+    def test_builds_one_case_per_scenario_named_with_scenario_name_only(self):
         feature = runner.parse_report_file(SAMPLE_REPORT)
         cases = runner.build_test_cases(feature)
         self.assertEqual(len(cases), 1)
-        self.assertEqual(cases[0]['name'], 'simple crud flow against the todo API - simple crud flow')
+        self.assertEqual(cases[0]['name'], 'simple crud flow')
         self.assertEqual(len(cases[0]['steps']), 5)
+
+    def test_falls_back_to_feature_name_when_scenario_has_no_name(self):
+        feature = {
+            'name': 'fallback feature',
+            'scenarios': [{
+                'name': '',
+                'steps': [{
+                    'keyword': 'method', 'text': 'get',
+                    'logSegments': [{'text': '1 > GET http://x\n\nresponse time in milliseconds: 1\n1 < 200 GET http://x\n'}],
+                }],
+            }],
+        }
+        cases = runner.build_test_cases(feature)
+        self.assertEqual(cases[0]['name'], 'fallback feature')
 
     def test_scenario_with_no_http_calls_is_skipped(self):
         feature = {
@@ -186,7 +200,7 @@ class GenerateTests(TestCase):
 
             first = rows[0]
             self.assertEqual(first[0], 1)  # S.No
-            self.assertEqual(first[1], 'simple crud flow against the todo API - simple crud flow')
+            self.assertEqual(first[1], 'simple crud flow')
             self.assertEqual(first[2], first[1])  # description == name
             self.assertEqual(first[3], 'QA')
             self.assertEqual(first[4], 'User is logged in')
