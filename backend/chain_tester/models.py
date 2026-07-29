@@ -63,6 +63,9 @@ class ChainRun(models.Model):
     categories = models.JSONField(default=list)
     body_field_tests = models.JSONField(default=dict)
     header_tests = models.JSONField(default=dict)
+    # False skips TLS certificate verification (for every step in the
+    # chain), for targets behind a self-signed or internal-CA certificate.
+    verify_ssl = models.BooleanField(default=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     error = models.TextField(blank=True, default='')
 

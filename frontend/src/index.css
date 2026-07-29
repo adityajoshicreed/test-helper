@@ -346,6 +346,15 @@ fieldset label.disabled {
   color: var(--text-dim);
 }
 
+.ssl-skip-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
 .run-button {
   background: var(--accent);
   border-color: var(--accent);

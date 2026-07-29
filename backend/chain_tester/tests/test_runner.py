@@ -108,10 +108,10 @@ class RunChainTests(TestCase):
         )
         return chain
 
-    def _create_run_and_pairs(self, chain, **selection):
+    def _create_run_and_pairs(self, chain, verify_ssl=True, **selection):
         final_step = chain.steps.order_by('order').last()
         generated = generate_test_cases(final_step, **selection)
-        chain_run = ChainRun.objects.create(chain=chain, status=ChainRun.STATUS_RUNNING)
+        chain_run = ChainRun.objects.create(chain=chain, status=ChainRun.STATUS_RUNNING, verify_ssl=verify_ssl)
         pairs = []
         for case_data in generated:
             chain_test_case = ChainTestCase.objects.create(
@@ -245,3 +245,21 @@ class RunChainTests(TestCase):
 
         self.assertEqual(cases[1].status_code, 200)
         self.assertEqual(cases[1].context_snapshot, {'session': 'sess-A', 'token': 'tok-2'})
+
+    @patch('apitester.test_executor.requests.request')
+    def test_verify_ssl_false_on_run_is_passed_to_every_request(self, mock_request):
+        chain = self._build_chain()
+        chain_run, pairs = self._create_run_and_pairs(chain, verify_ssl=False)
+        self.assertEqual(len(pairs), 1)  # baseline only
+
+        mock_request.side_effect = [
+            mock_response(200, '{"session_id": "sess-A"}'),  # step 1, once
+            mock_response(200, '{"token": "tok-1"}'),  # step 2 refresh
+            mock_response(200, '{"ok": true}'),  # final step
+        ]
+
+        runner.run_chain(chain_run.id, pairs)
+
+        self.assertEqual(mock_request.call_count, 3)
+        for call in mock_request.call_args_list:
+            self.assertFalse(call.kwargs['verify'])

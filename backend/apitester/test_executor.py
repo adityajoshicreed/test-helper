@@ -82,18 +82,21 @@ def _classify_outcome(category, status_code, error):
     return 'info'
 
 
-def execute_test_case(case: dict) -> dict:
+def execute_test_case(case: dict, verify_ssl: bool = True) -> dict:
     """`case` is a dict shaped like the generator output (or TestCase fields).
     Returns a dict of result fields to merge onto the TestCase. On a 429,
     retries with backoff before giving up and recording the rate-limited
     result -- `rate_limit_retries`/`rate_limit_wait_seconds` report what
-    happened so the UI can show it."""
+    happened so the UI can show it.
+
+    `verify_ssl=False` skips TLS certificate verification, for targets
+    behind a self-signed or internal-CA certificate."""
     method = case['request_method']
     url = case['request_url']
     headers = dict(case.get('request_headers') or {})
     body_mode = case.get('body_mode', 'none')
 
-    request_kwargs = {'headers': headers, 'timeout': DEFAULT_TIMEOUT_SECONDS}
+    request_kwargs = {'headers': headers, 'timeout': DEFAULT_TIMEOUT_SECONDS, 'verify': verify_ssl}
     if body_mode == 'json':
         request_kwargs['json'] = case.get('request_body')
     elif body_mode == 'raw':
@@ -115,6 +118,14 @@ def execute_test_case(case: dict) -> dict:
         start = time.monotonic()
         try:
             response = requests.request(method, url, **request_kwargs)
+        except requests.exceptions.SSLError as exc:
+            result['latency_ms'] = round((time.monotonic() - start) * 1000, 2)
+            result['error'] = (
+                f'SSL certificate verification failed: {exc}. If this target uses a '
+                'self-signed or internal certificate, enable "Skip SSL certificate '
+                'verification" and run again.'
+            )
+            break
         except requests.RequestException as exc:
             result['latency_ms'] = round((time.monotonic() - start) * 1000, 2)
             result['error'] = str(exc)
@@ -140,11 +151,11 @@ def execute_test_case(case: dict) -> dict:
     return result
 
 
-def run_and_save(test_case, case_data):
+def run_and_save(test_case, case_data, verify_ssl: bool = True):
     """Executes one already-persisted (pending) TestCase row and writes the
     result onto it -- used by the background runner so progress is visible
     to pollers as each row's executed_at flips from null to set."""
-    result = execute_test_case(case_data)
+    result = execute_test_case(case_data, verify_ssl=verify_ssl)
     test_case.status_code = result['status_code']
     test_case.response_headers = result['response_headers']
     test_case.response_body = result['response_body']

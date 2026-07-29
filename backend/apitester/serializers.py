@@ -64,7 +64,7 @@ class TestRunSerializer(serializers.ModelSerializer):
         model = TestRun
         fields = [
             'id', 'imported_request', 'categories', 'body_field_tests', 'header_tests',
-            'status', 'created_at', 'completed_at', 'test_cases',
+            'verify_ssl', 'status', 'created_at', 'completed_at', 'test_cases',
         ]
 
 

@@ -117,7 +117,7 @@ def _run_setup_step(chain_run, step, context):
     place. Returns the raw execution result dict so the caller can check
     for a hard failure."""
     case_data = substitute_case(case_from_step(step), context)
-    result = execute_test_case(case_data)
+    result = execute_test_case(case_data, verify_ssl=chain_run.verify_ssl)
 
     extracted = {}
     if not result['error']:
@@ -199,7 +199,7 @@ def run_chain(chain_run_id, pairs):
         chain_test_case.context_snapshot = context
         chain_test_case.save()
 
-        run_and_save(chain_test_case, substituted)
+        run_and_save(chain_test_case, substituted, verify_ssl=chain_run.verify_ssl)
 
     chain_run.status = ChainRun.STATUS_COMPLETED
     chain_run.completed_at = timezone.now()

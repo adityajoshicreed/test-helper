@@ -111,3 +111,33 @@ class ExecuteTestCaseRateLimitTests(SimpleTestCase):
         self.assertEqual(result['rate_limit_retries'], 0)
         mock_sleep.assert_not_called()
         self.assertEqual(mock_request.call_count, 1)
+
+
+class VerifySslTests(SimpleTestCase):
+    @patch('apitester.test_executor.requests.request')
+    def test_defaults_to_verifying_certificates(self, mock_request):
+        mock_request.return_value = mock_response(200)
+        test_executor.execute_test_case(make_case())
+        self.assertTrue(mock_request.call_args.kwargs['verify'])
+
+    @patch('apitester.test_executor.requests.request')
+    def test_verify_ssl_false_is_passed_through_to_requests(self, mock_request):
+        mock_request.return_value = mock_response(200)
+        test_executor.execute_test_case(make_case(), verify_ssl=False)
+        self.assertFalse(mock_request.call_args.kwargs['verify'])
+
+    @patch('apitester.test_executor.requests.request')
+    def test_ssl_error_produces_actionable_message(self, mock_request):
+        import requests as requests_module
+        mock_request.side_effect = requests_module.exceptions.SSLError('certificate verify failed')
+        result = test_executor.execute_test_case(make_case())
+        self.assertIn('certificate verify failed', result['error'])
+        self.assertIn('Skip SSL certificate verification', result['error'])
+        self.assertEqual(result['outcome'], 'error')
+
+    @patch('apitester.test_executor.requests.request')
+    def test_run_and_save_passes_verify_ssl_through(self, mock_request):
+        mock_request.return_value = mock_response(200)
+        test_case = MagicMock()
+        test_executor.run_and_save(test_case, make_case(), verify_ssl=False)
+        self.assertFalse(mock_request.call_args.kwargs['verify'])

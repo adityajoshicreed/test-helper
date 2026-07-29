@@ -41,6 +41,7 @@ export default function ParsedRequestView({ importedRequest, onRunTests, running
 
   const [bodyFieldSelected, setBodyFieldSelected] = useState(() => defaultSelection(bodyOptions, 'field'));
   const [headerSelected, setHeaderSelected] = useState(() => defaultSelection(headerOptions, 'header'));
+  const [skipSslVerification, setSkipSslVerification] = useState(false);
   const [blanketSelected, setBlanketSelected] = useState(() => {
     const initial = new Set();
     for (const cat of blanketCategories) {
@@ -74,6 +75,7 @@ export default function ParsedRequestView({ importedRequest, onRunTests, running
       categories: Array.from(blanketSelected),
       body_field_tests,
       header_tests,
+      verify_ssl: !skipSslVerification,
     });
   }
 
@@ -154,6 +156,15 @@ export default function ParsedRequestView({ importedRequest, onRunTests, running
           ))}
         </fieldset>
       )}
+
+      <label className="ssl-skip-toggle">
+        <input
+          type="checkbox"
+          checked={skipSslVerification}
+          onChange={(e) => setSkipSslVerification(e.target.checked)}
+        />
+        Skip SSL certificate verification (for self-signed or internal certificates)
+      </label>
 
       <button className="run-button" disabled={running || totalSelected === 0} onClick={handleRun}>
         {running ? 'Running tests…' : `Run ${totalSelected} test${totalSelected === 1 ? '' : 's'}`}

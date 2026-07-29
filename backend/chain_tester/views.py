@@ -141,6 +141,9 @@ class CreateChainRunView(APIView):
         categories = [c for c in requested if c in BLANKET_CATEGORIES]
         body_field_tests = _clean_field_tests(request.data.get('body_field_tests', {}), BODY_FIELD_TEST_CODES)
         header_tests = _clean_field_tests(request.data.get('header_tests', {}), HEADER_TEST_CODES)
+        verify_ssl = request.data.get('verify_ssl', True)
+        if not isinstance(verify_ssl, bool):
+            verify_ssl = True
 
         # Generation runs against the raw (still-templated) final step --
         # {{var}} placeholders are just ordinary strings to the mutation
@@ -152,6 +155,7 @@ class CreateChainRunView(APIView):
             categories=categories,
             body_field_tests=body_field_tests,
             header_tests=header_tests,
+            verify_ssl=verify_ssl,
             status=ChainRun.STATUS_RUNNING,
         )
 

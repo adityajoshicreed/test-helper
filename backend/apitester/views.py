@@ -24,13 +24,13 @@ from .test_generator import (
 )
 
 
-def _run_test_cases_in_background(test_run_id, pairs):
+def _run_test_cases_in_background(test_run_id, pairs, verify_ssl):
     """Runs on a separate thread from the request that created the TestRun,
     so the API can return immediately with the (pending) test cases and the
     frontend can poll for progress as each one's executed_at gets set."""
     try:
         for test_case, case_data in pairs:
-            run_and_save(test_case, case_data)
+            run_and_save(test_case, case_data, verify_ssl=verify_ssl)
         TestRun.objects.filter(pk=test_run_id).update(
             status=TestRun.STATUS_COMPLETED, completed_at=timezone.now()
         )
@@ -110,6 +110,9 @@ class CreateTestRunView(APIView):
         categories = [c for c in requested if c in BLANKET_CATEGORIES]
         body_field_tests = _clean_field_tests(request.data.get('body_field_tests', {}), BODY_FIELD_TEST_CODES)
         header_tests = _clean_field_tests(request.data.get('header_tests', {}), HEADER_TEST_CODES)
+        verify_ssl = request.data.get('verify_ssl', True)
+        if not isinstance(verify_ssl, bool):
+            verify_ssl = True
 
         generated = generate_test_cases(imported_request, categories, body_field_tests, header_tests)
 
@@ -118,6 +121,7 @@ class CreateTestRunView(APIView):
             categories=categories,
             body_field_tests=body_field_tests,
             header_tests=header_tests,
+            verify_ssl=verify_ssl,
             status=TestRun.STATUS_RUNNING,
         )
 
@@ -138,7 +142,7 @@ class CreateTestRunView(APIView):
 
         if pairs:
             thread = threading.Thread(
-                target=_run_test_cases_in_background, args=(test_run.id, pairs), daemon=True
+                target=_run_test_cases_in_background, args=(test_run.id, pairs, verify_ssl), daemon=True
             )
             thread.start()
         else:
