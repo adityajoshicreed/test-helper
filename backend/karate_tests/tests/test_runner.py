@@ -123,6 +123,74 @@ class ExtractApiStepsTests(SimpleTestCase):
         self.assertEqual(get_step['status_code'], '200')
 
 
+class ExtractApiStepsUnparsableStepTests(SimpleTestCase):
+    """A 'method' step can end up with no usable log data for reasons that
+    have nothing to do with our parsing logic -- most commonly, the step was
+    never actually reached/executed (e.g. an earlier step in the scenario
+    failed first), so Karate recorded no request/response logs for it at
+    all. These should be dropped, not shown as a phantom "Execute the CURL"
+    row, since there's genuinely no request to replay."""
+
+    def test_step_with_no_log_segments_is_omitted(self):
+        scenario = {
+            'name': 'a scenario',
+            'steps': [{'keyword': 'method', 'text': 'post', 'line': 10, 'logSegments': []}],
+        }
+        self.assertEqual(runner.extract_api_steps(scenario), [])
+
+    def test_step_with_missing_log_segments_key_is_omitted(self):
+        scenario = {
+            'name': 'a scenario',
+            'steps': [{'keyword': 'method', 'text': 'post', 'line': 10}],
+        }
+        self.assertEqual(runner.extract_api_steps(scenario), [])
+
+    def test_step_with_no_logs_produces_a_warning(self):
+        scenario = {
+            'name': 'a scenario',
+            'steps': [{'keyword': 'method', 'text': 'post', 'line': 10, 'logSegments': []}],
+        }
+        warnings = []
+        runner.extract_api_steps(scenario, warnings=warnings)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn('a scenario', warnings[0])
+        self.assertIn('post', warnings[0])
+        self.assertIn('line 10', warnings[0])
+
+    def test_step_with_logs_but_no_request_line_falls_back_with_a_warning(self):
+        # logSegments present, but the text doesn't contain a recognizable
+        # 'N > METHOD URL' request line -- a genuine parsing gap, distinct
+        # from the step never having executed at all.
+        scenario = {
+            'name': 'a scenario',
+            'steps': [{
+                'keyword': 'method', 'text': 'post', 'line': 12,
+                'logSegments': [{'text': 'some unexpected log format with no request line'}],
+            }],
+        }
+        warnings = []
+        steps = runner.extract_api_steps(scenario, warnings=warnings)
+        self.assertEqual(len(steps), 1)
+        self.assertIn('# Could not reconstruct the request for step: post', steps[0]['curl'])
+        self.assertEqual(len(warnings), 1)
+        self.assertIn('could not be reconstructed', warnings[0])
+
+    def test_other_steps_in_the_same_scenario_are_unaffected(self):
+        scenario = {
+            'name': 'a scenario',
+            'steps': [
+                {'keyword': 'method', 'text': 'post', 'line': 10, 'logSegments': []},
+                {
+                    'keyword': 'method', 'text': 'get', 'line': 15,
+                    'logSegments': [{'text': '1 > GET http://x\n\nresponse time in milliseconds: 1\n1 < 200 GET http://x\n'}],
+                },
+            ],
+        }
+        steps = runner.extract_api_steps(scenario)
+        self.assertEqual(len(steps), 1)
+        self.assertEqual(steps[0]['method'], 'GET')
+
+
 class ExtractApiStepsWithCallResultsTests(SimpleTestCase):
     """Real Karate report where the scenario's first step is
     `created = call read('called.feature') {...}` -- the called feature
@@ -352,6 +420,37 @@ class GenerateTests(TestCase):
             runner.generate(job)
             job.refresh_from_db()
             self.assertEqual(job.status, KarateTestCaseJob.STATUS_FAILED)
+
+    def test_skipped_step_is_omitted_and_reported_as_a_warning(self):
+        with tempfile.TemporaryDirectory() as reports_dir, tempfile.TemporaryDirectory() as out_dir:
+            feature = {
+                'name': 'a feature',
+                'scenarios': [{
+                    'name': 'a scenario',
+                    'steps': [
+                        {'keyword': 'method', 'text': 'post', 'line': 10, 'logSegments': []},
+                        {
+                            'keyword': 'method', 'text': 'get', 'line': 15,
+                            'logSegments': [{'text': '1 > GET http://x\n\nresponse time in milliseconds: 1\n1 < 200 GET http://x\n'}],
+                        },
+                    ],
+                }],
+            }
+            html = '<script id="karate-data" type="application/json">' + json.dumps(feature) + '</script>'
+            path = os.path.join(reports_dir, 'partial.html')
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(html)
+
+            excel_path = os.path.join(out_dir, 'cases.xlsx')
+            job = self._make_job(reports_dir, excel_path)
+            runner.generate(job)
+            job.refresh_from_db()
+
+            self.assertEqual(job.status, KarateTestCaseJob.STATUS_COMPLETED)
+            self.assertEqual(job.step_count, 1)  # the skipped 'post' step is omitted
+            self.assertEqual(len(job.warnings), 1)
+            self.assertIn('partial.html', job.warnings[0])
+            self.assertIn('post', job.warnings[0])
 
     def test_malformed_report_is_collected_as_warning_not_fatal(self):
         with tempfile.TemporaryDirectory() as reports_dir, tempfile.TemporaryDirectory() as out_dir:

@@ -192,16 +192,35 @@ def _iter_all_steps(scenario):
                     yield from _iter_all_steps(called_scenario)
 
 
-def extract_api_steps(scenario):
+def extract_api_steps(scenario, warnings=None):
     """Returns one dict per HTTP call the scenario made (directly or via a
-    called feature), in the order they actually ran."""
+    called feature), in the order they actually ran. `warnings` (if given)
+    collects human-readable notes about any 'method' step that couldn't be
+    turned into a normal row -- appended to, not returned, so a caller
+    walking many scenarios/features can share one list."""
     steps = []
     for step in _iter_all_steps(scenario):
         if step.get('keyword') != 'method':
             continue
+        step_label = f"scenario '{scenario.get('name') or '(unnamed)'}', step '{step.get('text')}' (line {step.get('line', '?')})"
         log_segments = step.get('logSegments') or []
+        if not log_segments:
+            # No logs at all means Karate never actually fired this request
+            # -- e.g. the step was skipped (an earlier step in the scenario
+            # failed first) or was reached but aborted before the call went
+            # out. There's nothing to reconstruct, and including a phantom
+            # "Execute the CURL" row for a call that never happened would be
+            # misleading, so it's dropped rather than shown as a failure.
+            if warnings is not None:
+                warnings.append(
+                    f"{step_label}: no request/response logs recorded (the step likely "
+                    "didn't execute, e.g. it was skipped) -- omitted from the output."
+                )
+            continue
         method, url, headers, req_body, status_code, resp_body = _split_request_response(log_segments)
         curl = build_curl(method, url, headers, req_body)
+        if not curl and warnings is not None:
+            warnings.append(f"{step_label}: logs were present but a curl command could not be reconstructed from them.")
         steps.append({
             'method': method or (step.get('text') or '').upper(),
             'url': url,
@@ -212,14 +231,14 @@ def extract_api_steps(scenario):
     return steps
 
 
-def build_test_cases(feature):
+def build_test_cases(feature, warnings=None):
     """Returns [{name, steps: [...]}] for every scenario in a parsed feature
     that made at least one HTTP call -- scenarios with no API calls aren't
     meaningful as an "API test case" so they're skipped."""
     feature_name = feature.get('name') or os.path.basename(feature.get('path', ''))
     cases = []
     for scenario in feature.get('scenarios', []):
-        api_steps = extract_api_steps(scenario)
+        api_steps = extract_api_steps(scenario, warnings=warnings)
         if not api_steps:
             continue
         name = scenario.get('name') or feature_name
@@ -300,7 +319,9 @@ def generate(job):
             if feature is None:
                 continue
             feature_count += 1
-            all_cases.extend(build_test_cases(feature))
+            step_warnings = []
+            all_cases.extend(build_test_cases(feature, warnings=step_warnings))
+            warnings.extend(f'{path}: {w}' for w in step_warnings)
 
         if feature_count == 0:
             job.status = job.STATUS_FAILED
