@@ -203,20 +203,25 @@ def extract_api_steps(scenario, warnings=None):
         if step.get('keyword') != 'method':
             continue
         step_label = f"scenario '{scenario.get('name') or '(unnamed)'}', step '{step.get('text')}' (line {step.get('line', '?')})"
-        log_segments = step.get('logSegments') or []
-        if not log_segments:
-            # No logs at all means Karate never actually fired this request
-            # -- e.g. the step was skipped (an earlier step in the scenario
-            # failed first) or was reached but aborted before the call went
-            # out. There's nothing to reconstruct, and including a phantom
-            # "Execute the CURL" row for a call that never happened would be
-            # misleading, so it's dropped rather than shown as a failure.
+        if step.get('status') == 'skipped':
+            # Karate marks a step explicitly 'skipped' when it never ran at
+            # all (an earlier step in the scenario failed first) -- there's
+            # nothing to reconstruct, and a phantom "Execute the CURL" row
+            # for a call that never happened would be misleading, so it's
+            # dropped rather than shown as a failure.
+            #
+            # Note: a missing/empty logSegments on its own is NOT used as
+            # this signal -- some Karate configs/versions omit detailed
+            # request/response logging for calls that did execute (this
+            # affected non-GET methods disproportionately in practice,
+            # since bodyless GETs are more likely to still produce a
+            # parseable log), and treating "no logs" the same as "skipped"
+            # caused those real executed calls to silently vanish instead
+            # of showing up with the "could not reconstruct" placeholder.
             if warnings is not None:
-                warnings.append(
-                    f"{step_label}: no request/response logs recorded (the step likely "
-                    "didn't execute, e.g. it was skipped) -- omitted from the output."
-                )
+                warnings.append(f"{step_label}: step was skipped (an earlier step in the scenario failed first) -- omitted from the output.")
             continue
+        log_segments = step.get('logSegments') or []
         method, url, headers, req_body, status_code, resp_body = _split_request_response(log_segments)
         curl = build_curl(method, url, headers, req_body)
         if not curl and warnings is not None:

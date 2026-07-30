@@ -123,32 +123,82 @@ class ExtractApiStepsTests(SimpleTestCase):
         self.assertEqual(get_step['status_code'], '200')
 
 
-class ExtractApiStepsUnparsableStepTests(SimpleTestCase):
-    """A 'method' step can end up with no usable log data for reasons that
-    have nothing to do with our parsing logic -- most commonly, the step was
-    never actually reached/executed (e.g. an earlier step in the scenario
-    failed first), so Karate recorded no request/response logs for it at
-    all. These should be dropped, not shown as a phantom "Execute the CURL"
-    row, since there's genuinely no request to replay."""
+class ExtractApiStepsSkippedStepTests(SimpleTestCase):
+    """A 'method' step that Karate marks status='skipped' never actually
+    ran (an earlier step in the scenario failed first) -- there's genuinely
+    no request to replay, so it's dropped rather than shown as a phantom
+    "Execute the CURL" row."""
 
-    def test_step_with_no_log_segments_is_omitted(self):
+    def test_skipped_step_is_omitted(self):
         scenario = {
             'name': 'a scenario',
-            'steps': [{'keyword': 'method', 'text': 'post', 'line': 10, 'logSegments': []}],
+            'steps': [{'keyword': 'method', 'text': 'post', 'line': 10, 'status': 'skipped', 'logSegments': []}],
         }
         self.assertEqual(runner.extract_api_steps(scenario), [])
 
-    def test_step_with_missing_log_segments_key_is_omitted(self):
+    def test_skipped_step_produces_a_warning(self):
+        scenario = {
+            'name': 'a scenario',
+            'steps': [{'keyword': 'method', 'text': 'post', 'line': 10, 'status': 'skipped', 'logSegments': []}],
+        }
+        warnings = []
+        runner.extract_api_steps(scenario, warnings=warnings)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn('a scenario', warnings[0])
+        self.assertIn('post', warnings[0])
+        self.assertIn('line 10', warnings[0])
+        self.assertIn('skipped', warnings[0])
+
+    def test_other_steps_in_the_same_scenario_are_unaffected(self):
+        scenario = {
+            'name': 'a scenario',
+            'steps': [
+                {'keyword': 'method', 'text': 'post', 'line': 10, 'status': 'skipped', 'logSegments': []},
+                {
+                    'keyword': 'method', 'text': 'get', 'line': 15, 'status': 'passed',
+                    'logSegments': [{'text': '1 > GET http://x\n\nresponse time in milliseconds: 1\n1 < 200 GET http://x\n'}],
+                },
+            ],
+        }
+        steps = runner.extract_api_steps(scenario)
+        self.assertEqual(len(steps), 1)
+        self.assertEqual(steps[0]['method'], 'GET')
+
+
+class ExtractApiStepsUnparsableStepTests(SimpleTestCase):
+    """A step that actually executed (status isn't 'skipped') can still end
+    up with no usable log data -- e.g. some Karate configs/versions omit
+    detailed request/response logging even for calls that ran, which in
+    practice hit non-GET methods harder than bodyless GETs. Unlike a
+    genuinely skipped step, this one really did make a call, so it's kept
+    (with the existing "could not reconstruct" placeholder) rather than
+    dropped -- dropping these caused real executed POST/PUT/DELETE calls to
+    silently vanish while GET calls kept working, and whole reports to fail
+    once every step in them was affected this way."""
+
+    def test_step_with_no_log_segments_and_passed_status_still_produces_a_row(self):
+        scenario = {
+            'name': 'a scenario',
+            'steps': [{'keyword': 'method', 'text': 'post', 'line': 10, 'status': 'passed', 'logSegments': []}],
+        }
+        steps = runner.extract_api_steps(scenario)
+        self.assertEqual(len(steps), 1)
+        self.assertIn('# Could not reconstruct the request for step: post', steps[0]['curl'])
+
+    def test_step_with_no_status_field_still_produces_a_row(self):
+        # Older/other Karate report variants may not include a 'status'
+        # field at all -- absence must not be treated as 'skipped'.
         scenario = {
             'name': 'a scenario',
             'steps': [{'keyword': 'method', 'text': 'post', 'line': 10}],
         }
-        self.assertEqual(runner.extract_api_steps(scenario), [])
+        steps = runner.extract_api_steps(scenario)
+        self.assertEqual(len(steps), 1)
 
     def test_step_with_no_logs_produces_a_warning(self):
         scenario = {
             'name': 'a scenario',
-            'steps': [{'keyword': 'method', 'text': 'post', 'line': 10, 'logSegments': []}],
+            'steps': [{'keyword': 'method', 'text': 'post', 'line': 10, 'status': 'passed', 'logSegments': []}],
         }
         warnings = []
         runner.extract_api_steps(scenario, warnings=warnings)
@@ -159,12 +209,11 @@ class ExtractApiStepsUnparsableStepTests(SimpleTestCase):
 
     def test_step_with_logs_but_no_request_line_falls_back_with_a_warning(self):
         # logSegments present, but the text doesn't contain a recognizable
-        # 'N > METHOD URL' request line -- a genuine parsing gap, distinct
-        # from the step never having executed at all.
+        # 'N > METHOD URL' request line -- a genuine parsing gap.
         scenario = {
             'name': 'a scenario',
             'steps': [{
-                'keyword': 'method', 'text': 'post', 'line': 12,
+                'keyword': 'method', 'text': 'post', 'line': 12, 'status': 'passed',
                 'logSegments': [{'text': 'some unexpected log format with no request line'}],
             }],
         }
@@ -174,21 +223,6 @@ class ExtractApiStepsUnparsableStepTests(SimpleTestCase):
         self.assertIn('# Could not reconstruct the request for step: post', steps[0]['curl'])
         self.assertEqual(len(warnings), 1)
         self.assertIn('could not be reconstructed', warnings[0])
-
-    def test_other_steps_in_the_same_scenario_are_unaffected(self):
-        scenario = {
-            'name': 'a scenario',
-            'steps': [
-                {'keyword': 'method', 'text': 'post', 'line': 10, 'logSegments': []},
-                {
-                    'keyword': 'method', 'text': 'get', 'line': 15,
-                    'logSegments': [{'text': '1 > GET http://x\n\nresponse time in milliseconds: 1\n1 < 200 GET http://x\n'}],
-                },
-            ],
-        }
-        steps = runner.extract_api_steps(scenario)
-        self.assertEqual(len(steps), 1)
-        self.assertEqual(steps[0]['method'], 'GET')
 
 
 class ExtractApiStepsWithCallResultsTests(SimpleTestCase):
@@ -421,6 +455,48 @@ class GenerateTests(TestCase):
             job.refresh_from_db()
             self.assertEqual(job.status, KarateTestCaseJob.STATUS_FAILED)
 
+    def test_executed_steps_without_logs_still_produce_a_completed_job(self):
+        # Regression: steps that genuinely ran (status='passed') but have no
+        # logSegments -- e.g. a Karate config/version that doesn't attach
+        # detailed request/response logging -- must not be dropped. Dropping
+        # them previously caused a report where *every* step was like this
+        # to end up with zero cases and a spurious "no scenario made any
+        # HTTP calls" failure, even though calls were actually made -- and
+        # in reports with a mix of methods, it disproportionately hid
+        # non-GET calls (bodyless GETs were more likely to still log
+        # cleanly), making it look like only GET requests were recognized.
+        with tempfile.TemporaryDirectory() as reports_dir, tempfile.TemporaryDirectory() as out_dir:
+            feature = {
+                'name': 'a feature',
+                'scenarios': [{
+                    'name': 'a scenario',
+                    'steps': [
+                        {'keyword': 'method', 'text': 'post', 'line': 10, 'status': 'passed', 'logSegments': []},
+                        {'keyword': 'method', 'text': 'get', 'line': 15, 'status': 'passed', 'logSegments': []},
+                    ],
+                }],
+            }
+            html = '<script id="karate-data" type="application/json">' + json.dumps(feature) + '</script>'
+            path = os.path.join(reports_dir, 'no_logs.html')
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(html)
+
+            excel_path = os.path.join(out_dir, 'cases.xlsx')
+            job = self._make_job(reports_dir, excel_path)
+            runner.generate(job)
+            job.refresh_from_db()
+
+            self.assertEqual(job.status, KarateTestCaseJob.STATUS_COMPLETED)
+            self.assertEqual(job.step_count, 2)
+            self.assertEqual(len(job.warnings), 2)
+
+            wb = load_workbook(excel_path)
+            ws = wb.active
+            rows = list(ws.iter_rows(min_row=2, values_only=True))
+            self.assertEqual(len(rows), 2)
+            self.assertIn('Could not reconstruct', rows[0][7])
+            self.assertIn('Could not reconstruct', rows[1][7])
+
     def test_skipped_step_is_omitted_and_reported_as_a_warning(self):
         with tempfile.TemporaryDirectory() as reports_dir, tempfile.TemporaryDirectory() as out_dir:
             feature = {
@@ -428,9 +504,9 @@ class GenerateTests(TestCase):
                 'scenarios': [{
                     'name': 'a scenario',
                     'steps': [
-                        {'keyword': 'method', 'text': 'post', 'line': 10, 'logSegments': []},
+                        {'keyword': 'method', 'text': 'post', 'line': 10, 'status': 'skipped', 'logSegments': []},
                         {
-                            'keyword': 'method', 'text': 'get', 'line': 15,
+                            'keyword': 'method', 'text': 'get', 'line': 15, 'status': 'passed',
                             'logSegments': [{'text': '1 > GET http://x\n\nresponse time in milliseconds: 1\n1 < 200 GET http://x\n'}],
                         },
                     ],
