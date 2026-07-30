@@ -11,6 +11,12 @@ function NewJobForm({ onCreated }) {
   const [preRequisite, setPreRequisite] = useState('');
   const [createdBy, setCreatedBy] = useState('');
   const [sprint, setSprint] = useState('');
+  const [lob, setLob] = useState('');
+  const [vertical, setVertical] = useState('');
+  const [feasibleForAutomation, setFeasibleForAutomation] = useState('');
+  const [testCaseApplicability, setTestCaseApplicability] = useState('');
+  const [labels, setLabels] = useState('');
+  const [testCaseStatus, setTestCaseStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -30,6 +36,12 @@ function NewJobForm({ onCreated }) {
         pre_requisite: preRequisite.trim(),
         created_by: createdBy.trim(),
         sprint: sprint.trim(),
+        lob: lob.trim(),
+        vertical: vertical.trim(),
+        feasible_for_automation: feasibleForAutomation.trim(),
+        test_case_applicability: testCaseApplicability.trim(),
+        labels: labels.trim(),
+        test_case_status: testCaseStatus.trim(),
       });
       onCreated(job);
     } catch (err) {
@@ -76,6 +88,36 @@ function NewJobForm({ onCreated }) {
 
       <label htmlFor="sprint">Sprint</label>
       <input id="sprint" type="text" placeholder="Sprint 24" value={sprint} onChange={(e) => setSprint(e.target.value)} />
+
+      <label htmlFor="lob">LOB</label>
+      <input id="lob" type="text" placeholder="Payments" value={lob} onChange={(e) => setLob(e.target.value)} />
+
+      <label htmlFor="vertical">Vertical</label>
+      <input id="vertical" type="text" placeholder="Retail" value={vertical} onChange={(e) => setVertical(e.target.value)} />
+
+      <label htmlFor="feasible-for-automation">Feasible for Automation?</label>
+      <input
+        id="feasible-for-automation"
+        type="text"
+        placeholder="Yes"
+        value={feasibleForAutomation}
+        onChange={(e) => setFeasibleForAutomation(e.target.value)}
+      />
+
+      <label htmlFor="test-case-applicability">Test Case Applicability</label>
+      <input
+        id="test-case-applicability"
+        type="text"
+        placeholder="Regression"
+        value={testCaseApplicability}
+        onChange={(e) => setTestCaseApplicability(e.target.value)}
+      />
+
+      <label htmlFor="labels">Labels</label>
+      <input id="labels" type="text" placeholder="smoke, api" value={labels} onChange={(e) => setLabels(e.target.value)} />
+
+      <label htmlFor="test-case-status">Status</label>
+      <input id="test-case-status" type="text" placeholder="Active" value={testCaseStatus} onChange={(e) => setTestCaseStatus(e.target.value)} />
 
       <button type="submit" disabled={submitting}>
         {submitting ? 'Starting…' : 'Generate test cases'}

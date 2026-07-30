@@ -38,6 +38,12 @@ class KarateTestCaseJobListCreateView(APIView):
             pre_requisite=data.get('pre_requisite', ''),
             created_by=data.get('created_by', ''),
             sprint=data.get('sprint', ''),
+            lob=data.get('lob', ''),
+            vertical=data.get('vertical', ''),
+            feasible_for_automation=data.get('feasible_for_automation', ''),
+            test_case_applicability=data.get('test_case_applicability', ''),
+            labels=data.get('labels', ''),
+            test_case_status=data.get('test_case_status', ''),
             status=KarateTestCaseJob.STATUS_RUNNING,
         )
 

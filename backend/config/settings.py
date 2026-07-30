@@ -88,6 +88,13 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        # Several tools run their HTTP calls on a background thread that
+        # writes to this same SQLite database while the request/test thread
+        # is also reading/writing it. SQLite allows only one writer at a
+        # time; sqlite3's default 5s lock-wait is occasionally too short
+        # under load, surfacing as "database table is locked" -- bumped
+        # here rather than restructuring the background-thread pattern.
+        'OPTIONS': {'timeout': 30},
     }
 }
 

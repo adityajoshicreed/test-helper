@@ -8,7 +8,9 @@ class KarateTestCaseJobSerializer(serializers.ModelSerializer):
         model = KarateTestCaseJob
         fields = [
             'id', 'reports_dir', 'excel_path', 'environment', 'pre_requisite',
-            'created_by', 'sprint', 'status', 'feature_count', 'scenario_count',
+            'created_by', 'sprint', 'lob', 'vertical', 'feasible_for_automation',
+            'test_case_applicability', 'labels', 'test_case_status',
+            'status', 'feature_count', 'scenario_count',
             'step_count', 'warnings', 'error', 'created_at', 'completed_at',
         ]
         read_only_fields = fields

@@ -43,7 +43,8 @@ _NOISY_REQUEST_HEADERS = {'content-length', 'host', 'connection', 'user-agent'}
 COLUMNS = [
     'S.No', 'Test Case Name', 'Test Case Description', 'Environment', 'Pre-Requisite',
     'Step #', 'Step Description', 'Test Data', 'Expected Result', 'Actual Result',
-    'Created By', 'Sprint',
+    'Created By', 'Sprint', 'LOB', 'Vertical', 'Feasible for Automation?',
+    'Test Case Applicability', 'Labels', 'Status',
 ]
 
 
@@ -257,7 +258,8 @@ def _format_result(status_code, response_body):
     )
 
 
-def write_excel(test_cases, excel_path, *, environment, pre_requisite, created_by, sprint):
+def write_excel(test_cases, excel_path, *, environment, pre_requisite, created_by, sprint,
+                 lob, vertical, feasible_for_automation, test_case_applicability, labels, test_case_status):
     wb = Workbook()
     ws = wb.active
     ws.title = 'Test Cases'
@@ -270,7 +272,9 @@ def write_excel(test_cases, excel_path, *, environment, pre_requisite, created_b
     # Columns that are constant for a whole test case (not per API call) get
     # merged into a single spanning cell across that case's step rows,
     # rather than repeating the same value on every row.
-    merged_columns = (1, 2, 3, 4, 5, 11, 12)  # S.No, Test Case Name/Description, Environment, Pre-Requisite, Created By, Sprint
+    merged_columns = (1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18)
+    # S.No, Test Case Name/Description, Environment, Pre-Requisite, Created By, Sprint,
+    # LOB, Vertical, Feasible for Automation?, Test Case Applicability, Labels, Status
 
     for case_number, case in enumerate(test_cases, start=1):
         start_row = ws.max_row + 1
@@ -286,6 +290,12 @@ def write_excel(test_cases, excel_path, *, environment, pre_requisite, created_b
                 step_number, 'Execute the CURL', step['curl'], result_text, result_text,
                 created_by if is_first_step else None,
                 sprint if is_first_step else None,
+                lob if is_first_step else None,
+                vertical if is_first_step else None,
+                feasible_for_automation if is_first_step else None,
+                test_case_applicability if is_first_step else None,
+                labels if is_first_step else None,
+                test_case_status if is_first_step else None,
             ])
             for cell in ws[ws.max_row]:
                 cell.alignment = wrap
@@ -296,7 +306,7 @@ def write_excel(test_cases, excel_path, *, environment, pre_requisite, created_b
                 ws.merge_cells(start_row=start_row, start_column=col, end_row=end_row, end_column=col)
                 ws.cell(row=start_row, column=col).alignment = merged_alignment
 
-    widths = [8, 30, 30, 14, 20, 8, 20, 60, 45, 45, 14, 12]
+    widths = [8, 30, 30, 14, 20, 8, 20, 60, 45, 45, 14, 12, 12, 14, 18, 20, 16, 12]
     for i, width in enumerate(widths, start=1):
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = width
 
@@ -341,6 +351,10 @@ def generate(job):
                 all_cases, job.excel_path,
                 environment=job.environment, pre_requisite=job.pre_requisite,
                 created_by=job.created_by, sprint=job.sprint,
+                lob=job.lob, vertical=job.vertical,
+                feasible_for_automation=job.feasible_for_automation,
+                test_case_applicability=job.test_case_applicability,
+                labels=job.labels, test_case_status=job.test_case_status,
             )
             job.feature_count = feature_count
             job.scenario_count = len(all_cases)

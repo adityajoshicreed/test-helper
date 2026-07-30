@@ -1,6 +1,6 @@
 import tempfile
 
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from rest_framework.test import APIClient
 
 from karate_tests.models import KarateTestCaseJob
@@ -42,6 +42,38 @@ class CreateKarateJobViewTests(TestCase):
             format='json',
         )
         self.assertEqual(response.status_code, 400)
+
+
+class CreateKarateJobSuccessViewTests(TransactionTestCase):
+    """A successful POST spawns a real background thread (generate() writing
+    to the job on a separate DB connection) -- TestCase's transaction-wrap-
+    and-rollback isolation races against that, so this needs
+    TransactionTestCase like chain_tester's equivalent success-path test."""
+
+    def test_new_excel_column_fields_are_stored_and_returned(self):
+        with tempfile.TemporaryDirectory() as d:
+            response = APIClient().post(
+                '/api/karate/jobs/',
+                {
+                    'reports_dir': d,
+                    'excel_path': '/tmp/out.xlsx',
+                    'lob': 'Payments',
+                    'vertical': 'Retail',
+                    'feasible_for_automation': 'Yes',
+                    'test_case_applicability': 'Regression',
+                    'labels': 'smoke, api',
+                    'test_case_status': 'Active',
+                },
+                format='json',
+            )
+            self.assertEqual(response.status_code, 201)
+            body = response.json()
+            self.assertEqual(body['lob'], 'Payments')
+            self.assertEqual(body['vertical'], 'Retail')
+            self.assertEqual(body['feasible_for_automation'], 'Yes')
+            self.assertEqual(body['test_case_applicability'], 'Regression')
+            self.assertEqual(body['labels'], 'smoke, api')
+            self.assertEqual(body['test_case_status'], 'Active')
 
 
 class KarateJobDetailViewTests(TestCase):

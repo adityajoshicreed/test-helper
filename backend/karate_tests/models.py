@@ -19,6 +19,14 @@ class KarateTestCaseJob(models.Model):
     pre_requisite = models.TextField(blank=True, default='')
     created_by = models.CharField(max_length=255, blank=True, default='')
     sprint = models.CharField(max_length=255, blank=True, default='')
+    lob = models.CharField(max_length=255, blank=True, default='')
+    vertical = models.CharField(max_length=255, blank=True, default='')
+    feasible_for_automation = models.CharField(max_length=255, blank=True, default='')
+    test_case_applicability = models.CharField(max_length=255, blank=True, default='')
+    labels = models.CharField(max_length=255, blank=True, default='')
+    # Renamed from the Excel column's plain "Status" to avoid colliding with
+    # this job's own pending/running/completed/failed `status` below.
+    test_case_status = models.CharField(max_length=255, blank=True, default='')
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     feature_count = models.IntegerField(default=0)

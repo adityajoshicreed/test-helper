@@ -312,6 +312,12 @@ class GenerateTests(TestCase):
             pre_requisite='User is logged in',
             created_by='Ada',
             sprint='Sprint 1',
+            lob='Payments',
+            vertical='Retail',
+            feasible_for_automation='Yes',
+            test_case_applicability='Regression',
+            labels='smoke',
+            test_case_status='Active',
             status=KarateTestCaseJob.STATUS_RUNNING,
         )
         defaults.update(overrides)
@@ -353,6 +359,12 @@ class GenerateTests(TestCase):
             self.assertIn('Response Code: 201', first[9])
             self.assertEqual(first[10], 'Ada')
             self.assertEqual(first[11], 'Sprint 1')
+            self.assertEqual(first[12], 'Payments')
+            self.assertEqual(first[13], 'Retail')
+            self.assertEqual(first[14], 'Yes')
+            self.assertEqual(first[15], 'Regression')
+            self.assertEqual(first[16], 'smoke')
+            self.assertEqual(first[17], 'Active')
 
             # Step numbers increment per test case.
             self.assertEqual([r[5] for r in rows], [1, 2, 3, 4, 5])
@@ -367,9 +379,15 @@ class GenerateTests(TestCase):
                 self.assertIsNone(row[4])
                 self.assertIsNone(row[10])
                 self.assertIsNone(row[11])
+                self.assertIsNone(row[12])
+                self.assertIsNone(row[13])
+                self.assertIsNone(row[14])
+                self.assertIsNone(row[15])
+                self.assertIsNone(row[16])
+                self.assertIsNone(row[17])
 
             merged_ranges = {str(r) for r in ws.merged_cells.ranges}
-            for col_letter in ('A', 'B', 'C', 'D', 'E', 'K', 'L'):
+            for col_letter in ('A', 'B', 'C', 'D', 'E', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'):
                 self.assertIn(f'{col_letter}2:{col_letter}6', merged_ranges)
 
     def test_end_to_end_includes_steps_from_called_feature(self):
