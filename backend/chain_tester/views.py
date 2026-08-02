@@ -179,6 +179,11 @@ class CreateChainRunView(APIView):
                 target=_run_chain_in_background, args=(chain_run.id, pairs), daemon=True
             )
             thread.start()
+            # If the thread finishes quickly (or, in tests, runs
+            # synchronously), `chain_run` here is still the pre-execution
+            # snapshot from .create() above -- refresh so the response
+            # reflects real current state.
+            chain_run.refresh_from_db()
         else:
             chain_run.status = ChainRun.STATUS_COMPLETED
             chain_run.completed_at = timezone.now()

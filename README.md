@@ -5,11 +5,12 @@ A growing collection of QA utilities behind a single home page:
 - **JMeter Report Generator** — upload a JMeter results CSV/JTL file and get back an HTML dashboard report.
 - **Karate Test Case Generator** — point it at a folder of Karate HTML execution reports and get back an Excel sheet of API test cases, one step per HTTP call.
 - **API Chain Tester** — chain multiple curl-derived requests together, passing data extracted from one response into the next, then run the same mutation-test engine against only the last one (the API actually under test).
+- **Expiring Credential Tester** — test a single endpoint whose auth token/header goes stale after a few uses or after some time: the run pauses the instant a response matches your "this means expired" signal, and resumes with a fresh value instead of failing every case after it.
 
 More tools (Test Case Creator, Test Data Generator, ...) will be added as separate cards on the home page over time.
 
 ## Adding a new tool
-The frontend is structured so a new tool is just: build a self-contained component under `frontend/src/tools/`, add it to the `TOOLS` registry in `frontend/src/App.jsx`, and flip its `available` flag to `true` in the catalog in `frontend/src/components/HomePage.jsx`. Each tool owns its own internal navigation/state; `App.jsx` only handles top-level routing between the home page and whichever tool is active. On the backend, each tool that needs one is its own Django app (`apitester/`, `jmeter_reporter/`, `karate_tests/`, `chain_tester/`) registered in `INSTALLED_APPS` and mounted under its own `/api/<tool>/` prefix in `config/urls.py`.
+The frontend is structured so a new tool is just: build a self-contained component under `frontend/src/tools/`, add it to the `TOOLS` registry in `frontend/src/App.jsx`, and flip its `available` flag to `true` in the catalog in `frontend/src/components/HomePage.jsx`. Each tool owns its own internal navigation/state; `App.jsx` only handles top-level routing between the home page and whichever tool is active. On the backend, each tool that needs one is its own Django app (`apitester/`, `jmeter_reporter/`, `karate_tests/`, `chain_tester/`, `credential_tester/`) registered in `INSTALLED_APPS` and mounted under its own `/api/<tool>/` prefix in `config/urls.py`.
 
 ## Stack
 - **Backend**: Django + Django REST Framework (SQLite), `backend/`
@@ -75,6 +76,15 @@ For APIs where one call depends on another — log in, take the token, use it to
 5. If a setup step fails outright (e.g. login itself fails), the whole run stops with a clear error naming the step — nothing downstream would be meaningful. If a "per test" refresh fails for one specific generated test, only that test is marked an error; the rest of the run continues.
 6. Past chains/runs are saved and browsable under "History".
 
+## What the Expiring Credential Tester tool does
+For a single endpoint whose auth token or header value goes stale after a few uses or after some time — rather than every mutation test after the first failure being a false negative. Click the "Expiring Credential Tester" card, then:
+1. Paste a curl command and parse it — same parser as API Tester.
+2. **Mark expiring credentials**: check any header and/or body JSON field that holds a value which expires, and give its current value (pre-filled from the curl for headers; type it in for body fields).
+3. **Set the expiration signal**: a status code, a message to look for in the response body, or both — a response counts as "expired" if *either* matches (when both are set). At least one is required.
+4. Pick mutation tests exactly as in API Tester, then run.
+5. The moment a response matches the expiration signal, the run **pauses**: that test's row stays pending (no result is recorded for it), and a banner asks for a fresh value for each declared credential field. Submitting **Resume** retries that exact test first — so every result in the end reflects a real attempt with valid credentials — then continues through the rest of the matrix. This can happen more than once in a single run.
+6. Past runs are saved and browsable under "History"; reopening a paused run shows the resume form again.
+
 ## Tests
 ```bash
 cd backend
@@ -89,3 +99,4 @@ python manage.py test
 - JMeter report generation has a 600s subprocess timeout; a job that doesn't finish by then is marked failed.
 - Karate Test Case Generator only supports the modern Alpine-based Karate HTML report format (the one with an embedded `<script id="karate-data">` JSON blob).
 - API Chain Tester: a step can only be added to the end of a chain (no reordering/editing/deleting an earlier step — start a new chain instead). A header whose *name* matches the API Tester's "dynamic header" auto-regeneration pattern (`req-id`, `correlation-id`, `trace-id`, `idempotency`) has its value overwritten with a random UUID before a `{{var}}` placeholder in it would ever get substituted — fine for typical header names (`Authorization`, custom names), just avoid using a placeholder in a header named like that. A "once" step also can't depend on a value produced by a *later* "per test" step — order foundational/reusable setup before anything that needs refreshing.
+- Expiring Credential Tester: if you mark a field as an expiring credential *and* also select mutation tests for that same field/header, the credential substitution runs last and overwrites that specific mutation — avoid dual-selecting the same field for both purposes. Separately, testing "remove this header"/"empty this header" on the very header marked as the expiring credential will often look like an expired-credential response too (many APIs return the same status for "missing" and "expired" auth), so expect that mutation to trigger a pause every time it runs — that's the server's real behavior, not a bug in the detection. Credential values are stored and displayed in plain text, same as every header/body value already stored across the other tools — this is a local QA tool, not a secrets vault.

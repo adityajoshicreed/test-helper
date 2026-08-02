@@ -1,10 +1,24 @@
-import time
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
 from rest_framework.test import APIClient
 
 from chain_tester.models import ApiChain, ChainRun, ChainStep, ChainTestCase
+
+
+class _SyncThread:
+    """Stand-in for threading.Thread that runs its target immediately, in
+    the calling thread, when .start() is called -- makes the create-run
+    view's background execution deterministic in tests instead of racing
+    a real background thread's writes against the test's own transaction
+    teardown (the actual cause of intermittent "database table is locked"
+    errors seen when running the full suite together)."""
+    def __init__(self, target=None, args=(), daemon=None):
+        self._target = target
+        self._args = args
+
+    def start(self):
+        self._target(*self._args)
 
 
 class CreateChainAndStepsTests(TestCase):
@@ -105,20 +119,13 @@ class CreateChainRunNoStepsTests(TestCase):
         self.assertEqual(response.status_code, 400)
 
 
-class CreateChainRunViewTests(TransactionTestCase):
-    """TransactionTestCase (not TestCase) because this test spawns a real
-    background thread that writes to the DB on its own connection --
-    TestCase's wrap-in-a-transaction-and-roll-back isolation isn't visible
-    across connections and races the thread's writes against teardown."""
-
+class CreateChainRunViewTests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
+    @patch('chain_tester.views.threading.Thread', _SyncThread)
     @patch('apitester.test_executor.requests.request')
     def test_creates_run_with_pending_cases_and_spawns_background_execution(self, mock_request):
-        # A real, deterministic HTTP mock -- the view spawns a real background
-        # thread for execution, so without this the test would fire actual
-        # network requests to a non-resolving domain.
         resp = MagicMock()
         resp.status_code = 200
         resp.headers = {}
@@ -138,18 +145,11 @@ class CreateChainRunViewTests(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 201)
         body = response.json()
-        self.assertIn(body['status'], ('running', 'completed'))
+        # The thread runs synchronously (see _SyncThread), so by the time
+        # the request returns, execution has already completed.
+        self.assertEqual(body['status'], 'completed')
         # baseline + 1 mutation.
         self.assertEqual(len(body['test_cases']), 2)
-
-        # Let the background thread finish before the test's transaction
-        # rolls back, so it doesn't try to write through a torn-down connection.
-        run_id = body['id']
-        for _ in range(50):
-            ChainRun.objects.filter(pk=run_id).first()
-            if ChainRun.objects.get(pk=run_id).status != ChainRun.STATUS_RUNNING:
-                break
-            time.sleep(0.05)
 
 
 class ChainRunListDetailViewTests(TestCase):

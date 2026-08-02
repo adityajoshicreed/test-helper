@@ -16,7 +16,13 @@ function OutcomeBadge({ outcome }) {
 
 export default function TestRunResults({ testRun }) {
   const [expandedId, setExpandedId] = useState(null);
-  const isRunning = testRun.status === 'running' || testRun.status === 'pending';
+  // A paused run (Expiring Credential Tester) still has pending cases with
+  // no outcome yet -- show progress, not a final summary that would group
+  // them all under a confusing "null" outcome.
+  const isRunning =
+    testRun.status === 'running' ||
+    testRun.status === 'pending' ||
+    testRun.status === 'paused_awaiting_credentials';
   const cases = testRun.test_cases || [];
   const currentId = cases.find((tc) => !tc.executed_at)?.id;
 

@@ -113,3 +113,32 @@ export function listChainRuns() {
 export function getChainRun(id) {
   return request(`/chains/runs/${id}/`);
 }
+
+export function parseCredentialCurl(rawCurl) {
+  return request('/credential-tests/parse-curl/', {
+    method: 'POST',
+    body: JSON.stringify({ raw_curl: rawCurl }),
+  });
+}
+
+export function createCredentialRun(payload) {
+  return request('/credential-tests/runs/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listCredentialRuns() {
+  return request('/credential-tests/runs/');
+}
+
+export function getCredentialRun(id) {
+  return request(`/credential-tests/runs/${id}/`);
+}
+
+export function resumeCredentialRun(id, currentValues) {
+  return request(`/credential-tests/runs/${id}/resume/`, {
+    method: 'POST',
+    body: JSON.stringify({ current_values: currentValues }),
+  });
+}

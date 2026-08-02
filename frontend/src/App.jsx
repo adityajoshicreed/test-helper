@@ -2,6 +2,7 @@ import { useState } from 'react';
 import HomePage from './components/HomePage';
 import ApiTesterTool from './tools/ApiTesterTool';
 import ChainTesterTool from './tools/ChainTesterTool';
+import CredentialExpiryTester from './tools/CredentialExpiryTester';
 import JmeterReportTool from './tools/JmeterReportTool';
 import KarateTestCaseTool from './tools/KarateTestCaseTool';
 
@@ -10,6 +11,7 @@ const TOOLS = {
   'jmeter-report': { name: 'JMeter Report Generator', component: JmeterReportTool },
   'karate-testcases': { name: 'Karate Test Case Generator', component: KarateTestCaseTool },
   'chain-tester': { name: 'API Chain Tester', component: ChainTesterTool },
+  'credential-tester': { name: 'Expiring Credential Tester', component: CredentialExpiryTester },
 };
 
 export default function App() {

@@ -49,6 +49,11 @@ class KarateTestCaseJobListCreateView(APIView):
 
         thread = threading.Thread(target=_run_job_in_background, args=(job.id,), daemon=True)
         thread.start()
+        # If the thread finishes quickly (or, in tests, runs
+        # synchronously), `job` here is still the pre-execution snapshot
+        # from .create() above -- refresh so the response reflects real
+        # current state.
+        job.refresh_from_db()
 
         return Response(KarateTestCaseJobSerializer(job).data, status=status.HTTP_201_CREATED)
 

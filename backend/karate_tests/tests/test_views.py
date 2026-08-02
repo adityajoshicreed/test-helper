@@ -1,9 +1,25 @@
 import tempfile
+from unittest.mock import patch
 
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
 from rest_framework.test import APIClient
 
 from karate_tests.models import KarateTestCaseJob
+
+
+class _SyncThread:
+    """Stand-in for threading.Thread that runs its target immediately, in
+    the calling thread, when .start() is called -- makes the create-job
+    view's background execution deterministic in tests instead of racing
+    a real background thread's writes against the test's own transaction
+    teardown (the actual cause of intermittent "database table is locked"
+    errors seen when running the full suite together)."""
+    def __init__(self, target=None, args=(), daemon=None):
+        self._target = target
+        self._args = args
+
+    def start(self):
+        self._target(*self._args)
 
 
 class CreateKarateJobViewTests(TestCase):
@@ -44,12 +60,8 @@ class CreateKarateJobViewTests(TestCase):
         self.assertEqual(response.status_code, 400)
 
 
-class CreateKarateJobSuccessViewTests(TransactionTestCase):
-    """A successful POST spawns a real background thread (generate() writing
-    to the job on a separate DB connection) -- TestCase's transaction-wrap-
-    and-rollback isolation races against that, so this needs
-    TransactionTestCase like chain_tester's equivalent success-path test."""
-
+class CreateKarateJobSuccessViewTests(TestCase):
+    @patch('karate_tests.views.threading.Thread', _SyncThread)
     def test_new_excel_column_fields_are_stored_and_returned(self):
         with tempfile.TemporaryDirectory() as d:
             response = APIClient().post(
@@ -74,6 +86,11 @@ class CreateKarateJobSuccessViewTests(TransactionTestCase):
             self.assertEqual(body['test_case_applicability'], 'Regression')
             self.assertEqual(body['labels'], 'smoke, api')
             self.assertEqual(body['test_case_status'], 'Active')
+
+            # The thread runs synchronously (see _SyncThread), so by the
+            # time the request returns, generate() has already finished --
+            # in this case failing, since the reports dir is empty.
+            self.assertEqual(body['status'], 'failed')
 
 
 class KarateJobDetailViewTests(TestCase):

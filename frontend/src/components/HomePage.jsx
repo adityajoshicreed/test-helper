@@ -28,6 +28,13 @@ const TOOL_CATALOG = [
     available: true,
   },
   {
+    id: 'credential-tester',
+    name: 'Expiring Credential Tester',
+    icon: '🔐',
+    description: 'Test an endpoint whose token/header expires mid-run — pauses and asks for a fresh value instead of failing every case after it.',
+    available: true,
+  },
+  {
     id: 'test-case-creator',
     name: 'Test Case Creator',
     icon: '📝',
