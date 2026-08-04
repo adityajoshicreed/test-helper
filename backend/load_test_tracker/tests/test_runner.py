@@ -146,34 +146,48 @@ class BucketSeriesTests(SimpleTestCase):
         self.assertEqual(cpu_ram_series, [])
         self.assertEqual(warnings, [])
 
-    def test_metrics_outside_jmeter_time_range_are_excluded_with_warning(self):
+    def test_metrics_far_outside_jmeter_window_are_still_included_on_their_own_timeline(self):
+        # Server metrics are often captured on a different machine than
+        # JMeter, and clocks between machines routinely disagree -- so the
+        # CPU/RAM series is deliberately NOT filtered against the JMeter
+        # test's time range (a prior version excluded/warned about this;
+        # that caused a real CPU/RAM chart to come up completely empty
+        # whenever the two clocks didn't closely agree). It's anchored to
+        # its own first row instead, wherever that happens to be.
         samples = [
             {'timestamp_ms': 0, 'elapsed_ms': 100, 'success': True, 'label': '', 'response_code': ''},
             {'timestamp_ms': 9000, 'elapsed_ms': 100, 'success': True, 'label': '', 'response_code': ''},
         ]
         metrics = [
-            {'timestamp_s': -100, 'cpu_percent': 1, 'ram_percent': 1},  # before start
-            {'timestamp_s': 5, 'cpu_percent': 50, 'ram_percent': 60},  # within range
-            {'timestamp_s': 9999, 'cpu_percent': 99, 'ram_percent': 99},  # after end
+            {'timestamp_s': 1000, 'cpu_percent': 10, 'ram_percent': 20},
+            {'timestamp_s': 1002, 'cpu_percent': 30, 'ram_percent': 40},
+            {'timestamp_s': 1004, 'cpu_percent': 50, 'ram_percent': 60},
         ]
         _, _, cpu_ram_series, warnings = runner.bucket_series(samples, metrics, bucket_count_target=5)
-        self.assertEqual(len(cpu_ram_series), 1)
-        self.assertEqual(cpu_ram_series[0]['cpu_percent'], 50)
-        self.assertEqual(len(warnings), 1)
-        self.assertIn('2 server-metrics row(s)', warnings[0])
+        self.assertEqual(warnings, [])
+        self.assertGreater(len(cpu_ram_series), 0)
+        # Anchored to the metrics file's own first row (t=0), not jmeter's.
+        self.assertEqual(cpu_ram_series[0]['t'], 0.0)
+        self.assertEqual(sum(p.get('cpu_percent', 0) for p in cpu_ram_series), 90)  # 10+30+50, nothing dropped
 
-    def test_cpu_ram_bucket_present_even_without_a_matching_jmeter_sample(self):
-        # Only one jmeter sample (bucket 0), but a metrics row lands in a
-        # later bucket that has no jmeter sample at all -- must still show up.
+    def test_cpu_ram_bucket_width_is_independent_of_jmeter_bucket_width(self):
+        # JMeter spans only 9s (bucket width would be ~2s at target=5), but
+        # the metrics file spans 100s -- its bucket width must be computed
+        # from its OWN duration (~20s), not jmeter's, so it doesn't end up
+        # with 11 raw points when a handful of buckets was the point.
         samples = [
             {'timestamp_ms': 0, 'elapsed_ms': 100, 'success': True, 'label': '', 'response_code': ''},
             {'timestamp_ms': 9000, 'elapsed_ms': 100, 'success': True, 'label': '', 'response_code': ''},
         ]
-        metrics = [{'timestamp_s': 5, 'cpu_percent': 33, 'ram_percent': 44}]
-        response_time_series, _, cpu_ram_series, _ = runner.bucket_series(samples, metrics, bucket_count_target=5)
-        # bucket width = 2s -> metrics at t=5s falls in bucket index 2 (t=4min... actually 4/60 min)
-        self.assertEqual(len(cpu_ram_series), 1)
-        self.assertEqual(cpu_ram_series[0]['cpu_percent'], 33)
+        metrics = [{'timestamp_s': i * 10, 'cpu_percent': i, 'ram_percent': i} for i in range(11)]  # 0..100s
+        _, _, cpu_ram_series, _ = runner.bucket_series(samples, metrics, bucket_count_target=5)
+        self.assertLessEqual(len(cpu_ram_series), 6)
+
+    def test_no_metrics_gives_empty_cpu_ram_series(self):
+        samples = [{'timestamp_ms': 0, 'elapsed_ms': 100, 'success': True, 'label': '', 'response_code': ''}]
+        _, _, cpu_ram_series, warnings = runner.bucket_series(samples, [], bucket_count_target=5)
+        self.assertEqual(cpu_ram_series, [])
+        self.assertEqual(warnings, [])
 
 
 class RecordResultTests(TestCase):

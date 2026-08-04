@@ -182,33 +182,35 @@ def compute_aggregates(samples):
     }
 
 
-def bucket_series(samples, metrics, bucket_count_target=BUCKET_COUNT_TARGET):
-    """Buckets JMeter samples and server metrics onto a shared "minutes
-    since the JMeter test started" time axis, capping the number of points
-    per series to roughly `bucket_count_target` regardless of the raw
-    sample count or test duration.
+def _bucket_width_for(duration_seconds, bucket_count_target):
+    return max(1, math.ceil(duration_seconds / bucket_count_target)) if duration_seconds > 0 else 1
 
-    response_time_series/throughput_series only get a point for buckets
-    that actually contain a JMeter sample; cpu_ram_series is built
-    independently from whichever buckets the metrics rows fall into (a
-    metrics row and a JMeter sample landing in the same 1-second slice
-    isn't guaranteed, and dropping real CPU/RAM data just because JMeter
-    didn't log a request in that exact instant would be misleading) -- both
-    still share the same start time and bucket width, so their `t` values
-    line up on one x-axis.
+
+def bucket_series(samples, metrics, bucket_count_target=BUCKET_COUNT_TARGET):
+    """Buckets JMeter samples onto a "minutes since the JMeter test started"
+    axis, and server metrics onto their own separate "minutes since the
+    metrics capture started" axis -- capping the number of points per
+    series to roughly `bucket_count_target` regardless of the raw row count
+    or duration of either file.
+
+    The two axes are deliberately *not* aligned to each other. Server
+    metrics are often captured on a different machine than the one running
+    JMeter (the server under test, a monitoring host, ...), and clocks
+    between machines routinely disagree or run in different timezones --
+    trying to line them up on one shared axis meant real CPU/RAM data could
+    get silently excluded as "outside the test's time range" whenever the
+    two clocks didn't closely agree, even though the data was perfectly
+    valid on its own terms. Showing the full CPU/RAM capture on its own
+    timeline is more useful than a chart that might come up empty.
     """
     start_ms = min(s['timestamp_ms'] for s in samples)
     end_ms = max(s['timestamp_ms'] for s in samples)
     duration_seconds = (end_ms - start_ms) / 1000.0
-
-    bucket_width_seconds = max(1, math.ceil(duration_seconds / bucket_count_target)) if duration_seconds > 0 else 1
-
-    def bucket_index(relative_seconds):
-        return int(relative_seconds // bucket_width_seconds)
+    bucket_width_seconds = _bucket_width_for(duration_seconds, bucket_count_target)
 
     request_buckets = {}
     for s in samples:
-        idx = bucket_index((s['timestamp_ms'] - start_ms) / 1000.0)
+        idx = int(((s['timestamp_ms'] - start_ms) / 1000.0) // bucket_width_seconds)
         request_buckets.setdefault(idx, []).append(s['elapsed_ms'])
 
     response_time_series = []
@@ -226,32 +228,29 @@ def bucket_series(samples, metrics, bucket_count_target=BUCKET_COUNT_TARGET):
             'tps': round(len(elapsed_values) / bucket_width_seconds, 2),
         })
 
-    metric_buckets = {}
-    out_of_range_count = 0
-    for m in metrics:
-        relative_seconds = m['timestamp_s'] - start_ms / 1000.0
-        if relative_seconds < 0 or relative_seconds > duration_seconds:
-            out_of_range_count += 1
-            continue
-        idx = bucket_index(relative_seconds)
-        metric_buckets.setdefault(idx, []).append(m)
-
     cpu_ram_series = []
-    for idx in sorted(metric_buckets):
-        rows = metric_buckets[idx]
-        t_minutes = round(idx * bucket_width_seconds / 60.0, 3)
-        cpu_ram_series.append({
-            't': t_minutes,
-            'cpu_percent': round(sum(r['cpu_percent'] for r in rows) / len(rows), 2),
-            'ram_percent': round(sum(r['ram_percent'] for r in rows) / len(rows), 2),
-        })
+    if metrics:
+        metrics_start_s = min(m['timestamp_s'] for m in metrics)
+        metrics_end_s = max(m['timestamp_s'] for m in metrics)
+        metrics_bucket_width = _bucket_width_for(metrics_end_s - metrics_start_s, bucket_count_target)
 
+        metric_buckets = {}
+        for m in metrics:
+            idx = int((m['timestamp_s'] - metrics_start_s) // metrics_bucket_width)
+            metric_buckets.setdefault(idx, []).append(m)
+
+        for idx in sorted(metric_buckets):
+            rows = metric_buckets[idx]
+            t_minutes = round(idx * metrics_bucket_width / 60.0, 3)
+            cpu_ram_series.append({
+                't': t_minutes,
+                'cpu_percent': round(sum(r['cpu_percent'] for r in rows) / len(rows), 2),
+                'ram_percent': round(sum(r['ram_percent'] for r in rows) / len(rows), 2),
+            })
+
+    # Reserved for future validation warnings (e.g. sparse coverage) --
+    # nothing gets excluded from either series anymore, so always empty.
     warnings = []
-    if out_of_range_count:
-        warnings.append(
-            f"{out_of_range_count} server-metrics row(s) fell outside the JMeter test's time range "
-            "and were excluded from the CPU/RAM chart."
-        )
 
     return response_time_series, throughput_series, cpu_ram_series, warnings
 

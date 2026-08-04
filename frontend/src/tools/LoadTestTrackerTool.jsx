@@ -266,9 +266,13 @@ function LoadTestDashboard({ test }) {
         ]}
       />
 
+      <p className="group-hint">
+        Server CPU/RAM below is shown on its own timeline (minutes since that file's own first row) — it's
+        not aligned to the JMeter test's clock, since the two are often captured on different machines.
+      </p>
       <LineChart
         title="Server CPU / RAM (%)"
-        xLabel="Minutes elapsed"
+        xLabel="Minutes since metrics capture started"
         yLabel="%"
         xFormat={minutesFormat}
         yFormat={percentFormat}
