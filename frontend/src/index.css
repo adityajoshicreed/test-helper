@@ -392,6 +392,20 @@ fieldset label.disabled {
   margin: 8px 0 0;
 }
 
+.stop-run-button {
+  margin-left: 10px;
+  padding: 3px 10px;
+  font-size: 12px;
+  border-color: var(--red);
+  color: var(--red);
+  vertical-align: middle;
+}
+
+.stop-run-button:hover:not(:disabled) {
+  background: var(--red);
+  color: #fff;
+}
+
 .current-row {
   background: rgba(79, 140, 255, 0.08);
 }

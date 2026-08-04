@@ -27,11 +27,21 @@ from .test_generator import (
 def _run_test_cases_in_background(test_run_id, pairs, verify_ssl):
     """Runs on a separate thread from the request that created the TestRun,
     so the API can return immediately with the (pending) test cases and the
-    frontend can poll for progress as each one's executed_at gets set."""
+    frontend can poll for progress as each one's executed_at gets set.
+
+    Checks `stop_requested` before firing each case, so a user hitting Stop
+    takes effect after the currently in-flight request finishes (that one
+    HTTP call can't be interrupted mid-flight) rather than after every
+    remaining case has run."""
     try:
         for test_case, case_data in pairs:
+            if TestRun.objects.filter(pk=test_run_id, stop_requested=True).exists():
+                TestRun.objects.filter(pk=test_run_id).update(
+                    status=TestRun.STATUS_STOPPED, completed_at=timezone.now()
+                )
+                return
             run_and_save(test_case, case_data, verify_ssl=verify_ssl)
-        TestRun.objects.filter(pk=test_run_id).update(
+        TestRun.objects.filter(pk=test_run_id, status=TestRun.STATUS_RUNNING).update(
             status=TestRun.STATUS_COMPLETED, completed_at=timezone.now()
         )
     except Exception:
@@ -151,6 +161,19 @@ class CreateTestRunView(APIView):
             test_run.save(update_fields=['status', 'completed_at'])
 
         return Response(TestRunSerializer(test_run).data, status=status.HTTP_201_CREATED)
+
+
+class StopTestRunView(APIView):
+    def post(self, request, pk):
+        test_run = get_object_or_404(TestRun, pk=pk)
+        if test_run.status != TestRun.STATUS_RUNNING:
+            return Response(
+                {'error': f"Test run is '{test_run.status}', not running -- nothing to stop."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        test_run.stop_requested = True
+        test_run.save(update_fields=['stop_requested'])
+        return Response(TestRunSerializer(test_run).data)
 
 
 class TestRunListView(generics.ListAPIView):

@@ -47,6 +47,10 @@ export function getTestRun(id) {
   return request(`/test-runs/${id}/`);
 }
 
+export function stopTestRun(id) {
+  return request(`/test-runs/${id}/stop/`, { method: 'POST' });
+}
+
 export function createJmeterReportJob(formData) {
   return request('/jmeter/jobs/', {
     method: 'POST',

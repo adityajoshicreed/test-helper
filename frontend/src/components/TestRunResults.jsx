@@ -14,7 +14,7 @@ function OutcomeBadge({ outcome }) {
   return <span className={`outcome-badge outcome-${outcome}`}>{OUTCOME_LABELS[outcome] || outcome}</span>;
 }
 
-export default function TestRunResults({ testRun }) {
+export default function TestRunResults({ testRun, onStop, stopping }) {
   const [expandedId, setExpandedId] = useState(null);
   // A paused run (Expiring Credential Tester) still has pending cases with
   // no outcome yet -- show progress, not a final summary that would group
@@ -36,7 +36,7 @@ export default function TestRunResults({ testRun }) {
       <h2>Results — Test Run #{testRun.id}</h2>
 
       {isRunning ? (
-        <TestRunProgress testRun={testRun} />
+        <TestRunProgress testRun={testRun} onStop={onStop} stopping={stopping} />
       ) : (
         <div className="results-summary">
           {Object.entries(summary).map(([outcome, count]) => (

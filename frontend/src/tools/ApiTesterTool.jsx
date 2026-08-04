@@ -3,7 +3,7 @@ import CurlImportForm from '../components/CurlImportForm';
 import HistoryPage from '../components/HistoryPage';
 import ParsedRequestView from '../components/ParsedRequestView';
 import TestRunResults from '../components/TestRunResults';
-import { createTestRun, getTestRun } from '../api/client';
+import { createTestRun, getTestRun, stopTestRun } from '../api/client';
 
 const POLL_INTERVAL_MS = 700;
 const IN_PROGRESS_STATUSES = new Set(['pending', 'running']);
@@ -14,6 +14,7 @@ export default function ApiTesterTool() {
   const [testRun, setTestRun] = useState(null);
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState(null);
+  const [stopping, setStopping] = useState(false);
   const pollRef = useRef(null);
 
   useEffect(() => {
@@ -51,6 +52,20 @@ export default function ApiTesterTool() {
     setTestRun(null);
     setRunError(null);
     setRunning(false);
+    setStopping(false);
+  }
+
+  async function handleStopTestRun() {
+    if (!testRun || stopping) return;
+    setStopping(true);
+    try {
+      const updated = await stopTestRun(testRun.id);
+      setTestRun(updated);
+    } catch (err) {
+      setRunError(err.message);
+    } finally {
+      setStopping(false);
+    }
   }
 
   async function handleRunTests(selection) {
@@ -58,6 +73,7 @@ export default function ApiTesterTool() {
     setRunning(true);
     setRunError(null);
     setTestRun(null);
+    setStopping(false);
     try {
       const run = await createTestRun(importedRequest.id, selection);
       setTestRun(run);
@@ -77,6 +93,7 @@ export default function ApiTesterTool() {
     setImportedRequest(imported);
     setTestRun(run);
     setRunError(null);
+    setStopping(false);
     setView('import');
     if (IN_PROGRESS_STATUSES.has(run.status)) {
       setRunning(true);
@@ -115,7 +132,9 @@ export default function ApiTesterTool() {
             />
           )}
           {runError && <p className="error-text">{runError}</p>}
-          {testRun && <TestRunResults testRun={testRun} />}
+          {testRun && (
+            <TestRunResults testRun={testRun} onStop={handleStopTestRun} stopping={stopping} />
+          )}
         </>
       )}
 
