@@ -36,6 +36,28 @@ class ResolveJmeterBinTests(SimpleTestCase):
             self.assertEqual(runner.resolve_jmeter_bin(f.name), f.name)
 
 
+class DefaultOutputDirTests(SimpleTestCase):
+    def test_strips_extension_and_uses_csv_path_dir(self):
+        self.assertEqual(
+            runner.default_output_dir('/tmp/uploads/uuid_results.csv', 'results.csv'),
+            '/tmp/uploads/results',
+        )
+
+    def test_uses_original_filename_not_saved_filename(self):
+        # The saved CSV on disk has a uuid prefix (see _save_uploaded_csv) --
+        # the default folder name should come from the original upload name.
+        self.assertEqual(
+            runner.default_output_dir('/tmp/uploads/ab12cd34_run-1.csv', 'run-1.csv'),
+            '/tmp/uploads/run-1',
+        )
+
+    def test_handles_multi_dot_filenames(self):
+        self.assertEqual(
+            runner.default_output_dir('/tmp/uploads/uuid_results.v2.csv', 'results.v2.csv'),
+            '/tmp/uploads/results.v2',
+        )
+
+
 class ValidateOutputDirTests(SimpleTestCase):
     def test_rejects_empty(self):
         with self.assertRaises(runner.PreflightError):

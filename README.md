@@ -53,10 +53,10 @@ Open http://localhost:5173, click the "API Tester" card on the home page, then:
 
 ## What the JMeter Report Generator tool does
 Click the "JMeter Report Generator" card, then:
-1. Upload a JMeter results file (CSV or JTL) and provide an absolute output directory. Optionally provide the path to your `jmeter` binary — if left blank, the tool looks for `jmeter` on the server's PATH.
+1. Upload a JMeter results file (CSV or JTL). The output directory is optional — leave it blank and the tool creates a folder named after the CSV file (extension stripped) right next to where the CSV gets saved on the server; provide an absolute path yourself if you want it written somewhere specific. Optionally provide the path to your `jmeter` binary — if left blank, the tool looks for `jmeter` on the server's PATH.
 2. On submit, the tool runs JMeter's built-in non-GUI report generator (`jmeter -g <results> -o <output-dir>`) in a background thread and returns immediately; the UI polls for completion.
-3. Preflight checks happen before anything runs, with a clear error message and no job created if they fail: the output directory must be an absolute path and either not exist yet or be empty (JMeter itself refuses to write into a non-empty directory), and the JMeter binary must exist and be executable (or be found on PATH).
-4. On success, click "Open report" to view the generated HTML dashboard (served directly by the backend from the output directory) — it's also written to disk at the path you gave. On failure, the exact command, stdout, and stderr are shown for debugging.
+3. Preflight checks happen before anything runs, with a clear error message and no job created if they fail: an explicitly-given output directory must be an absolute path and either not exist yet or be empty (JMeter itself refuses to write into a non-empty directory), and the JMeter binary must exist and be executable (or be found on PATH).
+4. On success, click "Open report" to view the generated HTML dashboard (served directly by the backend from the output directory) — it's also written to disk at the path shown on screen. On failure, the exact command, stdout, and stderr are shown for debugging.
 5. Past jobs are saved and browsable under "History".
 
 ## What the Karate Test Case Generator tool does

@@ -36,6 +36,16 @@ def resolve_jmeter_bin(jmeter_bin):
     return jmeter_bin
 
 
+def default_output_dir(csv_path, original_filename):
+    """When the user leaves the output directory blank, defaults to a new
+    folder named after the CSV file (extension stripped), next to wherever
+    the uploaded CSV itself was saved -- browsers don't expose the client's
+    original filesystem path, so the server-side upload location is the
+    closest available notion of "the same location as the CSV file"."""
+    base_name = os.path.splitext(os.path.basename(original_filename))[0]
+    return os.path.join(os.path.dirname(csv_path), base_name)
+
+
 def validate_output_dir(output_dir):
     """JMeter creates the output directory if it doesn't exist, but refuses
     to write into one that already exists and isn't empty (to avoid

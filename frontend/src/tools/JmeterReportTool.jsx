@@ -18,8 +18,8 @@ function NewReportForm({ onCreated }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!csvFile || !outputDir.trim()) {
-      setError('Provide both a results CSV/JTL file and an output directory.');
+    if (!csvFile) {
+      setError('Provide a results CSV/JTL file.');
       return;
     }
     setSubmitting(true);
@@ -27,7 +27,7 @@ function NewReportForm({ onCreated }) {
     try {
       const formData = new FormData();
       formData.append('csv_file', csvFile);
-      formData.append('output_dir', outputDir.trim());
+      if (outputDir.trim()) formData.append('output_dir', outputDir.trim());
       if (jmeterBin.trim()) formData.append('jmeter_bin', jmeterBin.trim());
       const job = await createJmeterReportJob(formData);
       onCreated(job);
@@ -48,11 +48,14 @@ function NewReportForm({ onCreated }) {
         onChange={(e) => setCsvFile(e.target.files[0] || null)}
       />
 
-      <label htmlFor="output-dir">Output directory (absolute path — must not already exist, or must be empty)</label>
+      <label htmlFor="output-dir">
+        Output directory (optional — absolute path, must not already exist or must be empty. Leave blank to
+        create a folder named after the CSV file, next to where it's uploaded)
+      </label>
       <input
         id="output-dir"
         type="text"
-        placeholder="/Users/you/reports/run-1"
+        placeholder="/Users/you/reports/run-1 (optional)"
         value={outputDir}
         onChange={(e) => setOutputDir(e.target.value)}
       />

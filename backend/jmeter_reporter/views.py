@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import JmeterReportJob
-from .runner import PreflightError, resolve_jmeter_bin, run_report, validate_output_dir
+from .runner import PreflightError, default_output_dir, resolve_jmeter_bin, run_report, validate_output_dir
 from .serializers import JmeterReportJobListSerializer, JmeterReportJobSerializer
 
 UPLOAD_DIR = os.path.join(settings.BASE_DIR, 'jmeter_uploads')
@@ -51,13 +51,23 @@ class JmeterReportJobListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        output_dir_input = (request.data.get('output_dir') or '').strip()
+        csv_path = None
+        if not output_dir_input:
+            # Need to know where the CSV landed on disk before we can default
+            # the output dir to "next to it" -- save it now instead of after
+            # validation.
+            csv_path = _save_uploaded_csv(uploaded_file)
+            output_dir_input = default_output_dir(csv_path, uploaded_file.name)
+
         try:
-            output_dir = validate_output_dir(request.data.get('output_dir', ''))
+            output_dir = validate_output_dir(output_dir_input)
             jmeter_bin = resolve_jmeter_bin(request.data.get('jmeter_bin', ''))
         except PreflightError as exc:
             return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        csv_path = _save_uploaded_csv(uploaded_file)
+        if csv_path is None:
+            csv_path = _save_uploaded_csv(uploaded_file)
 
         job = JmeterReportJob.objects.create(
             csv_filename=uploaded_file.name,

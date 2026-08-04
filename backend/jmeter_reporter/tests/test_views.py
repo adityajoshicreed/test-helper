@@ -1,4 +1,6 @@
+import os
 import tempfile
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -20,9 +22,17 @@ class CreateJmeterReportJobViewTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('csv_file', response.json()['error'])
 
-    def test_missing_output_dir_returns_400(self):
-        response = self.client.post('/api/jmeter/jobs/', {'csv_file': make_csv()})
-        self.assertEqual(response.status_code, 400)
+    @patch('jmeter_reporter.views.threading.Thread')
+    @patch('jmeter_reporter.runner.shutil.which', return_value='/usr/bin/jmeter')
+    def test_missing_output_dir_defaults_to_folder_next_to_uploaded_csv(self, mock_which, mock_thread):
+        with tempfile.TemporaryDirectory() as upload_dir:
+            fake_csv_path = os.path.join(upload_dir, 'abc123_results.csv')
+            with patch('jmeter_reporter.views._save_uploaded_csv', return_value=fake_csv_path):
+                response = self.client.post('/api/jmeter/jobs/', {'csv_file': make_csv()})
+            self.assertEqual(response.status_code, 201)
+            job = JmeterReportJob.objects.get()
+            self.assertEqual(job.output_dir, os.path.join(upload_dir, 'results'))
+        mock_thread.assert_called_once()
 
     def test_relative_output_dir_returns_400(self):
         response = self.client.post(
