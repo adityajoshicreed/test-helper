@@ -142,3 +142,35 @@ export function resumeCredentialRun(id, currentValues) {
     body: JSON.stringify({ current_values: currentValues }),
   });
 }
+
+export function createLoadTestPlan(payload) {
+  return request('/load-tests/plans/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listLoadTestPlans() {
+  return request('/load-tests/plans/');
+}
+
+export function getLoadTestPlan(id) {
+  return request(`/load-tests/plans/${id}/`);
+}
+
+export function addPlannedLoadTest(planId, payload) {
+  return request(`/load-tests/plans/${planId}/tests/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function recordLoadTestResult(testId, jmeterCsvFile, serverMetricsCsvFile) {
+  const formData = new FormData();
+  formData.append('jmeter_csv', jmeterCsvFile);
+  formData.append('server_metrics_csv', serverMetricsCsvFile);
+  return request(`/load-tests/tests/${testId}/record/`, {
+    method: 'POST',
+    body: formData,
+  });
+}

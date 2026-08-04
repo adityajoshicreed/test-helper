@@ -9,6 +9,11 @@
   --orange: #d29922;
   --red: #f85149;
   --purple: #c084fc;
+  /* Validated (dataviz skill) against this dark surface (--bg): categorical
+     pairs blue/orange and blue/aqua both pass CVD-safety + contrast checks. */
+  --chart-blue: #3987e5;
+  --chart-orange: #d95926;
+  --chart-aqua: #199e70;
   color-scheme: dark;
 }
 
@@ -555,4 +560,154 @@ fieldset label.disabled {
   background: rgba(154, 161, 172, 0.15);
   padding: 2px 8px;
   border-radius: 4px;
+}
+
+.stat-tile-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.stat-tile-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0 0 4px;
+}
+
+.stat-tile-value {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.stat-tile-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 4px 0 0;
+}
+
+.chart-container {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.chart-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-gridline {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  fill: var(--text-dim);
+  font-size: 10px;
+}
+
+.chart-axis-title {
+  fill: var(--text-dim);
+  font-size: 11px;
+}
+
+.chart-line {
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-crosshair {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.chart-tooltip-x {
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.chart-tooltip-key {
+  width: 10px;
+  height: 2px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.chart-tooltip-name {
+  color: var(--text-dim);
+  flex: 1;
+}
+
+.chart-tooltip-value {
+  color: var(--text);
+}
+
+.chart-legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-legend-key {
+  width: 12px;
+  height: 2px;
+  display: inline-block;
+}
+
+.chart-table-toggle {
+  margin-top: 10px;
+}
+
+.chart-table-toggle summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 12px;
 }

@@ -35,6 +35,13 @@ const TOOL_CATALOG = [
     available: true,
   },
   {
+    id: 'load-test-tracker',
+    name: 'Load Test Tracker',
+    icon: '📈',
+    description: 'Plan a set of load tests for an API, then record each one’s JMeter + server CPU/RAM results as a dashboard.',
+    available: true,
+  },
+  {
     id: 'test-case-creator',
     name: 'Test Case Creator',
     icon: '📝',

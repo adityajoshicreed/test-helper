@@ -5,6 +5,7 @@ import ChainTesterTool from './tools/ChainTesterTool';
 import CredentialExpiryTester from './tools/CredentialExpiryTester';
 import JmeterReportTool from './tools/JmeterReportTool';
 import KarateTestCaseTool from './tools/KarateTestCaseTool';
+import LoadTestTrackerTool from './tools/LoadTestTrackerTool';
 
 const TOOLS = {
   'api-tester': { name: 'API Tester', component: ApiTesterTool },
@@ -12,6 +13,7 @@ const TOOLS = {
   'karate-testcases': { name: 'Karate Test Case Generator', component: KarateTestCaseTool },
   'chain-tester': { name: 'API Chain Tester', component: ChainTesterTool },
   'credential-tester': { name: 'Expiring Credential Tester', component: CredentialExpiryTester },
+  'load-test-tracker': { name: 'Load Test Tracker', component: LoadTestTrackerTool },
 };
 
 export default function App() {
