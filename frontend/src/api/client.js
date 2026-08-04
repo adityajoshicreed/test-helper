@@ -51,6 +51,13 @@ export function stopTestRun(id) {
   return request(`/test-runs/${id}/stop/`, { method: 'POST' });
 }
 
+export function exportTestRunExcel(id, payload) {
+  return request(`/test-runs/${id}/export-excel/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function createJmeterReportJob(formData) {
   return request('/jmeter/jobs/', {
     method: 'POST',

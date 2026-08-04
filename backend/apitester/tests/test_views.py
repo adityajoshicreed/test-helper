@@ -1,9 +1,13 @@
+import tempfile
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
+from django.utils import timezone
+from openpyxl import load_workbook
 from rest_framework.test import APIClient
 
-from apitester.models import ImportedRequest, TestRun
+from apitester.models import ImportedRequest, TestCase as ApiTestCase, TestRun
+from karate_tests.runner import COLUMNS
 
 
 class _SyncThread:
@@ -126,3 +130,105 @@ class BackgroundRunnerStopBehaviorTests(TestCase):
         run = TestRun.objects.get(pk=response.json()['id'])
         self.assertEqual(run.status, TestRun.STATUS_COMPLETED)
         self.assertFalse(run.stop_requested)
+
+
+class ExportTestRunExcelViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.imported = ImportedRequest.objects.create(
+            raw_curl='curl https://api.example.com/x', method='GET', url='https://api.example.com/x',
+            headers={}, body=None, body_raw=None, is_json_body=False,
+        )
+
+    def _make_run(self, run_status):
+        return TestRun.objects.create(imported_request=self.imported, status=run_status)
+
+    def _add_executed_case(self, run, **overrides):
+        defaults = dict(
+            test_run=run, category='baseline', description='Baseline (unmodified request)',
+            request_method='GET', request_url='https://api.example.com/x',
+            request_headers={'Accept': 'application/json'}, body_mode='none',
+            status_code=200, response_body='{"ok": true}', executed_at=timezone.now(),
+        )
+        defaults.update(overrides)
+        return ApiTestCase.objects.create(**defaults)
+
+    def test_export_on_running_run_returns_400(self):
+        run = self._make_run(TestRun.STATUS_RUNNING)
+        response = self.client.post(f'/api/test-runs/{run.id}/export-excel/', {'excel_path': '/tmp/x.xlsx'})
+        self.assertEqual(response.status_code, 400)
+
+    def test_export_with_no_executed_cases_returns_400(self):
+        run = self._make_run(TestRun.STATUS_COMPLETED)
+        response = self.client.post(f'/api/test-runs/{run.id}/export-excel/', {'excel_path': '/tmp/x.xlsx'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('no executed test cases', response.json()['error'])
+
+    def test_export_rejects_relative_excel_path(self):
+        run = self._make_run(TestRun.STATUS_COMPLETED)
+        self._add_executed_case(run)
+        response = self.client.post(f'/api/test-runs/{run.id}/export-excel/', {'excel_path': 'relative.xlsx'})
+        self.assertEqual(response.status_code, 400)
+
+    def test_export_writes_workbook_with_karate_style_columns(self):
+        run = self._make_run(TestRun.STATUS_STOPPED)
+        self._add_executed_case(
+            run, category='baseline', description='Baseline (unmodified request)',
+            request_method='GET', status_code=200, response_body='{"ok": true}',
+        )
+        self._add_executed_case(
+            run, category='body_field_null', description="Set field 'name' to null",
+            request_method='POST', request_url='https://api.example.com/x',
+            request_headers={'Content-Type': 'application/json'}, body_mode='json',
+            request_body={'name': None}, status_code=None, response_body=None,
+            error='Connection timed out',
+        )
+        # Never-executed case (e.g. left pending by a Stop) must not appear in the export.
+        ApiTestCase.objects.create(
+            test_run=run, category='http_method', description='Send request using PUT instead of GET',
+            request_method='PUT', request_url='https://api.example.com/x',
+            request_headers={}, body_mode='none',
+        )
+
+        with tempfile.TemporaryDirectory() as out_dir:
+            excel_path = f'{out_dir}/api-test-cases.xlsx'
+            response = self.client.post(f'/api/test-runs/{run.id}/export-excel/', {
+                'excel_path': excel_path,
+                'environment': 'QA',
+                'pre_requisite': 'User is logged in',
+                'created_by': 'Ada',
+                'sprint': 'Sprint 1',
+                'lob': 'Payments',
+                'vertical': 'Retail',
+                'feasible_for_automation': 'Yes',
+                'test_case_applicability': 'Regression',
+                'labels': 'smoke',
+                'test_case_status': 'Active',
+            })
+            self.assertEqual(response.status_code, 200)
+            body = response.json()
+            self.assertEqual(body['excel_path'], excel_path)
+            self.assertEqual(body['exported_case_count'], 2)
+
+            wb = load_workbook(excel_path)
+            ws = wb.active
+            header = [c.value for c in ws[1]]
+            self.assertEqual(header, COLUMNS)
+
+            rows = list(ws.iter_rows(min_row=2, values_only=True))
+            self.assertEqual(len(rows), 2)  # one row per exported case (each is a single-step case)
+
+            first = rows[0]
+            self.assertEqual(first[0], 1)  # S.No
+            self.assertEqual(first[1], 'baseline: Baseline (unmodified request)')
+            self.assertIn('curl -X GET', first[7])
+            self.assertIn('Response Code: 200', first[8])
+            self.assertEqual(first[3], 'QA')
+            self.assertEqual(first[12], 'Payments')
+            self.assertEqual(first[17], 'Active')
+
+            second = rows[1]
+            self.assertEqual(second[0], 2)
+            self.assertIn('curl -X POST', second[7])
+            # An errored case's error message is shown as the result, not a status code.
+            self.assertIn('Connection timed out', second[8])

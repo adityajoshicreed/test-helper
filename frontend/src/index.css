@@ -166,6 +166,36 @@ button.secondary {
   font-size: 15px;
 }
 
+.export-excel-toggle {
+  margin-top: 16px;
+}
+
+.export-excel-form {
+  margin-top: 16px;
+}
+
+.export-excel-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.export-excel-actions button {
+  margin-top: 0;
+}
+
+.export-excel-success {
+  color: var(--green);
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.export-excel-success code {
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
 .extract-rule-row {
   display: flex;
   gap: 8px;

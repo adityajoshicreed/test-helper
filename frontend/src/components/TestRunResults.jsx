@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react';
+import ExportExcelForm from './ExportExcelForm';
 import TestRunProgress from './TestRunProgress';
 
 const OUTCOME_LABELS = {
@@ -14,7 +15,7 @@ function OutcomeBadge({ outcome }) {
   return <span className={`outcome-badge outcome-${outcome}`}>{OUTCOME_LABELS[outcome] || outcome}</span>;
 }
 
-export default function TestRunResults({ testRun, onStop, stopping }) {
+export default function TestRunResults({ testRun, onStop, stopping, enableExcelExport }) {
   const [expandedId, setExpandedId] = useState(null);
   // A paused run (Expiring Credential Tester) still has pending cases with
   // no outcome yet -- show progress, not a final summary that would group
@@ -25,6 +26,7 @@ export default function TestRunResults({ testRun, onStop, stopping }) {
     testRun.status === 'paused_awaiting_credentials';
   const cases = testRun.test_cases || [];
   const currentId = cases.find((tc) => !tc.executed_at)?.id;
+  const executedCount = cases.filter((tc) => tc.executed_at).length;
 
   const summary = cases.reduce((acc, tc) => {
     acc[tc.outcome] = (acc[tc.outcome] || 0) + 1;
@@ -45,6 +47,10 @@ export default function TestRunResults({ testRun, onStop, stopping }) {
             </span>
           ))}
         </div>
+      )}
+
+      {enableExcelExport && !isRunning && executedCount > 0 && (
+        <ExportExcelForm testRunId={testRun.id} executedCount={executedCount} />
       )}
 
       <table className="results-table">

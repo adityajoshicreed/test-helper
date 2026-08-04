@@ -10,4 +10,9 @@ urlpatterns = [
     path('test-runs/', views.TestRunListView.as_view(), name='test-run-list'),
     path('test-runs/<int:pk>/', views.TestRunDetailView.as_view(), name='test-run-detail'),
     path('test-runs/<int:pk>/stop/', views.StopTestRunView.as_view(), name='stop-test-run'),
+    path(
+        'test-runs/<int:pk>/export-excel/',
+        views.ExportTestRunExcelView.as_view(),
+        name='export-test-run-excel',
+    ),
 ]

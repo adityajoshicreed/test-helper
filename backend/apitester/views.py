@@ -1,3 +1,4 @@
+import json
 import threading
 
 from django.db import connection
@@ -6,6 +7,8 @@ from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from karate_tests.runner import PreflightError, build_curl, validate_excel_path, write_excel
 
 from .curl_parser import CurlParseError, parse_curl
 from .models import ImportedRequest, TestCase, TestRun
@@ -174,6 +177,73 @@ class StopTestRunView(APIView):
         test_run.stop_requested = True
         test_run.save(update_fields=['stop_requested'])
         return Response(TestRunSerializer(test_run).data)
+
+
+def _request_body_for_excel(test_case):
+    if test_case.body_mode == 'json':
+        return json.dumps(test_case.request_body) if test_case.request_body is not None else None
+    if test_case.body_mode == 'raw':
+        return test_case.request_body_raw
+    return None
+
+
+def _build_excel_cases(executed_cases):
+    """Turns executed apitester TestCase rows into the [{name, steps}] shape
+    karate_tests.runner.write_excel expects -- each API-tested case is a
+    single real HTTP call, so it maps to exactly one case with exactly one
+    step (unlike a Karate scenario, which can chain several calls)."""
+    cases = []
+    for tc in executed_cases:
+        curl = build_curl(tc.request_method, tc.request_url, tc.request_headers, _request_body_for_excel(tc))
+        cases.append({
+            'name': f'{tc.category}: {tc.description}',
+            'steps': [{
+                'curl': curl,
+                'status_code': tc.status_code,
+                'response_body': tc.error if tc.error else tc.response_body,
+            }],
+        })
+    return cases
+
+
+class ExportTestRunExcelView(APIView):
+    def post(self, request, pk):
+        test_run = get_object_or_404(TestRun, pk=pk)
+        if test_run.status in (TestRun.STATUS_PENDING, TestRun.STATUS_RUNNING):
+            return Response(
+                {'error': "Test run is still in progress -- wait for it to finish (or stop it) before exporting."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        executed_cases = list(test_run.test_cases.filter(executed_at__isnull=False).order_by('id'))
+        if not executed_cases:
+            return Response(
+                {'error': 'This test run has no executed test cases to export.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            excel_path = validate_excel_path(request.data.get('excel_path', ''))
+        except PreflightError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            write_excel(
+                _build_excel_cases(executed_cases), excel_path,
+                environment=request.data.get('environment', ''),
+                pre_requisite=request.data.get('pre_requisite', ''),
+                created_by=request.data.get('created_by', ''),
+                sprint=request.data.get('sprint', ''),
+                lob=request.data.get('lob', ''),
+                vertical=request.data.get('vertical', ''),
+                feasible_for_automation=request.data.get('feasible_for_automation', ''),
+                test_case_applicability=request.data.get('test_case_applicability', ''),
+                labels=request.data.get('labels', ''),
+                test_case_status=request.data.get('test_case_status', ''),
+            )
+        except OSError as exc:
+            return Response({'error': f'Could not write the Excel file: {exc}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'excel_path': excel_path, 'exported_case_count': len(executed_cases)})
 
 
 class TestRunListView(generics.ListAPIView):

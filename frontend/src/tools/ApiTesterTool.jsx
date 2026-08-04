@@ -133,7 +133,12 @@ export default function ApiTesterTool() {
           )}
           {runError && <p className="error-text">{runError}</p>}
           {testRun && (
-            <TestRunResults testRun={testRun} onStop={handleStopTestRun} stopping={stopping} />
+            <TestRunResults
+              testRun={testRun}
+              onStop={handleStopTestRun}
+              stopping={stopping}
+              enableExcelExport
+            />
           )}
         </>
       )}
