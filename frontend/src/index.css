@@ -755,3 +755,170 @@ fieldset label.disabled {
   color: var(--text-dim);
   font-size: 12px;
 }
+
+/* Spring Boot Log Viewer */
+
+.log-viewer-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.log-pattern-note {
+  font-style: italic;
+}
+
+.log-viewer-warnings {
+  margin-bottom: 14px;
+}
+
+.log-viewer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.log-search-input,
+.log-logger-input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.log-search-input {
+  flex: 2;
+  min-width: 180px;
+}
+
+.log-logger-input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.log-level-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.log-level-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  background: rgba(154, 161, 172, 0.1);
+  color: var(--text-dim);
+}
+
+.log-level-chip input {
+  margin: 0;
+}
+
+.log-quick-filters,
+.log-sort-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.log-sort-controls select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.log-level-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.log-level-error {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--red);
+}
+
+.log-level-warn {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--orange);
+}
+
+.log-level-info {
+  background: rgba(79, 140, 255, 0.15);
+  color: var(--accent);
+}
+
+.log-level-debug,
+.log-level-trace {
+  background: rgba(154, 161, 172, 0.15);
+  color: var(--text-dim);
+}
+
+.log-level-fatal {
+  background: var(--red);
+  color: #fff;
+}
+
+.log-level-unknown {
+  background: rgba(154, 161, 172, 0.1);
+  color: var(--text-dim);
+}
+
+.log-timestamp-cell {
+  font-family: ui-monospace, monospace;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+.log-logger-cell {
+  font-family: ui-monospace, monospace;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-message-cell {
+  max-width: 480px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-message-more {
+  color: var(--text-dim);
+}
+
+.log-message-detail {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-dim);
+}

@@ -185,3 +185,25 @@ export function recordLoadTestResult(testId, jmeterCsvFile, serverMetricsCsvFile
     body: formData,
   });
 }
+
+export function createLogViewJob(payload) {
+  return request('/logs/jobs/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listLogViewJobs() {
+  return request('/logs/jobs/');
+}
+
+export function getLogViewJob(id) {
+  return request(`/logs/jobs/${id}/`);
+}
+
+export function listLogEntries(jobId, params = {}) {
+  const query = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ''))
+  ).toString();
+  return request(`/logs/jobs/${jobId}/entries/${query ? `?${query}` : ''}`);
+}

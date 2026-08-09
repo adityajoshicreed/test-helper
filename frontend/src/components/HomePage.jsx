@@ -42,6 +42,13 @@ const TOOL_CATALOG = [
     available: true,
   },
   {
+    id: 'log-viewer',
+    name: 'Spring Boot Log Viewer',
+    icon: '📜',
+    description: 'Pretty-print a folder of Spring Boot .log files (optionally using your log4j XML config) with search, filters, and sort to help you debug.',
+    available: true,
+  },
+  {
     id: 'test-case-creator',
     name: 'Test Case Creator',
     icon: '📝',
