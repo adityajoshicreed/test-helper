@@ -146,6 +146,7 @@ class ExportTestRunExcelViewTests(TestCase):
     def _add_executed_case(self, run, **overrides):
         defaults = dict(
             test_run=run, category='baseline', description='Baseline (unmodified request)',
+            human_description='Verify API returns the expected response for a valid, unmodified request',
             request_method='GET', request_url='https://api.example.com/x',
             request_headers={'Accept': 'application/json'}, body_mode='none',
             status_code=200, response_body='{"ok": true}', executed_at=timezone.now(),
@@ -178,6 +179,7 @@ class ExportTestRunExcelViewTests(TestCase):
         )
         self._add_executed_case(
             run, category='body_field_null', description="Set field 'name' to null",
+            human_description="Verify API where user sent field 'name' as null",
             request_method='POST', request_url='https://api.example.com/x',
             request_headers={'Content-Type': 'application/json'}, body_mode='json',
             request_body={'name': None}, status_code=None, response_body=None,
@@ -220,7 +222,7 @@ class ExportTestRunExcelViewTests(TestCase):
 
             first = rows[0]
             self.assertEqual(first[0], 1)  # S.No
-            self.assertEqual(first[1], 'baseline: Baseline (unmodified request)')
+            self.assertEqual(first[1], 'Verify API returns the expected response for a valid, unmodified request')
             self.assertIn('curl -X GET', first[7])
             self.assertIn('Response Code: 200', first[8])
             self.assertEqual(first[3], 'QA')
@@ -229,6 +231,20 @@ class ExportTestRunExcelViewTests(TestCase):
 
             second = rows[1]
             self.assertEqual(second[0], 2)
+            self.assertEqual(second[1], "Verify API where user sent field 'name' as null")
             self.assertIn('curl -X POST', second[7])
             # An errored case's error message is shown as the result, not a status code.
             self.assertIn('Connection timed out', second[8])
+
+    def test_export_falls_back_to_terse_description_when_human_description_is_blank(self):
+        # Covers TestCase rows created before human_description existed.
+        run = self._make_run(TestRun.STATUS_COMPLETED)
+        self._add_executed_case(run, description='Baseline (unmodified request)', human_description='')
+
+        with tempfile.TemporaryDirectory() as out_dir:
+            excel_path = f'{out_dir}/api-test-cases.xlsx'
+            response = self.client.post(f'/api/test-runs/{run.id}/export-excel/', {'excel_path': excel_path})
+            self.assertEqual(response.status_code, 200)
+            wb = load_workbook(excel_path)
+            rows = list(wb.active.iter_rows(min_row=2, values_only=True))
+            self.assertEqual(rows[0][1], 'Baseline (unmodified request)')

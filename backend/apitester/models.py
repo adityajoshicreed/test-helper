@@ -77,6 +77,11 @@ class TestCase(models.Model):
     )
     category = models.CharField(max_length=50)
     description = models.CharField(max_length=255)
+    # A QA-readable "Verify API where ..." sentence for the same mutation
+    # `description` names tersely (e.g. "Set field 'name' to null") -- shown
+    # as the test case name in the Excel export, where "body_field_null: Set
+    # field 'name' to null" isn't meaningful to someone reading the sheet.
+    human_description = models.CharField(max_length=500, blank=True, default='')
 
     request_method = models.CharField(max_length=10)
     request_url = models.TextField()

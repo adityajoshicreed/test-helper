@@ -144,6 +144,7 @@ class CreateTestRunView(APIView):
                 test_run=test_run,
                 category=case_data['category'],
                 description=case_data['description'],
+                human_description=case_data.get('human_description', ''),
                 request_method=case_data['request_method'],
                 request_url=case_data['request_url'],
                 request_headers=case_data['request_headers'],
@@ -196,7 +197,7 @@ def _build_excel_cases(executed_cases):
     for tc in executed_cases:
         curl = build_curl(tc.request_method, tc.request_url, tc.request_headers, _request_body_for_excel(tc))
         cases.append({
-            'name': f'{tc.category}: {tc.description}',
+            'name': tc.human_description or tc.description,
             'steps': [{
                 'curl': curl,
                 'status_code': tc.status_code,

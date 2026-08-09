@@ -228,21 +228,25 @@ def _make_body_field_case(imported_request, path, category, value):
     if category == 'body_field_null':
         _set_at_path(mutated, path, None)
         description = f"Set field '{path}' to null"
+        human_description = f"Verify API where user sent field '{path}' as null"
     elif category == 'body_field_missing':
         _delete_at_path(mutated, path)
         description = f"Remove field '{path}' from body"
+        human_description = f"Verify API where user did not send field '{path}' in the request"
     elif category == 'body_field_empty':
         empty = _empty_value(value)
         if empty is _SKIP:
             return None
         _set_at_path(mutated, path, empty)
         description = f"Set field '{path}' to an empty value"
+        human_description = f"Verify API where user sent field '{path}' as empty"
     elif category == 'body_field_wrong_type':
         wrong = _wrong_type_value(value)
         if wrong is _SKIP:
             return None
         _set_at_path(mutated, path, wrong)
         description = f"Set field '{path}' to an incorrect data type"
+        human_description = f"Verify API where user sent field '{path}' with an incorrect data type"
     else:
         return None
 
@@ -250,6 +254,7 @@ def _make_body_field_case(imported_request, path, category, value):
     case['request_body'] = mutated
     case['category'] = category
     case['description'] = description
+    case['human_description'] = human_description
     return case
 
 
@@ -259,9 +264,11 @@ def _make_header_case(imported_request, key, category):
     if category == 'header_missing':
         mutated_headers.pop(key, None)
         description = f"Remove header '{key}'"
+        human_description = f"Verify API where user did not send header '{key}' in the request"
     elif category == 'header_empty':
         mutated_headers[key] = ''
         description = f"Set header '{key}' to an empty string"
+        human_description = f"Verify API where user sent header '{key}' as empty"
     else:
         return None
 
@@ -269,6 +276,7 @@ def _make_header_case(imported_request, key, category):
     case['request_headers'] = mutated_headers
     case['category'] = category
     case['description'] = description
+    case['human_description'] = human_description
     return case
 
 
@@ -280,27 +288,55 @@ def _body_whole_cases(imported_request):
 
     cases = []
 
-    def add(description, *, body_mode, body=None, body_raw=None):
+    def add(description, human_description, *, body_mode, body=None, body_raw=None):
         case = _base_case(imported_request)
         case['request_body'] = body
         case['request_body_raw'] = body_raw
         case['body_mode'] = body_mode
         case['category'] = 'body_whole'
         case['description'] = description
+        case['human_description'] = human_description
         cases.append(case)
 
-    add('Request sent with no body at all', body_mode='none')
+    add(
+        'Request sent with no body at all',
+        'Verify API where user sent the request with no body at all',
+        body_mode='none',
+    )
 
     if has_json_body:
-        add('Body replaced with empty object {}', body_mode='json', body={})
-        add('Body replaced with null', body_mode='json', body=None)
-        add('Body replaced with malformed / invalid JSON', body_mode='raw', body_raw='{invalid json,,,')
+        add(
+            'Body replaced with empty object {}',
+            'Verify API where user sent an empty object {} as the body',
+            body_mode='json', body={},
+        )
+        add(
+            'Body replaced with null',
+            'Verify API where user sent null as the body',
+            body_mode='json', body=None,
+        )
+        add(
+            'Body replaced with malformed / invalid JSON',
+            'Verify API where user sent malformed / invalid JSON as the body',
+            body_mode='raw', body_raw='{invalid json,,,',
+        )
         if isinstance(imported_request.body, dict):
-            add('Body replaced with an array instead of an object',
-                body_mode='json', body=['unexpected', 'array', 'body'])
+            add(
+                'Body replaced with an array instead of an object',
+                'Verify API where user sent an array instead of an object as the body',
+                body_mode='json', body=['unexpected', 'array', 'body'],
+            )
     else:
-        add('Body replaced with an empty string', body_mode='raw', body_raw='')
-        add('Body replaced with malformed JSON', body_mode='raw', body_raw='{invalid json,,,')
+        add(
+            'Body replaced with an empty string',
+            'Verify API where user sent an empty string as the body',
+            body_mode='raw', body_raw='',
+        )
+        add(
+            'Body replaced with malformed JSON',
+            'Verify API where user sent malformed JSON as the body',
+            body_mode='raw', body_raw='{invalid json,,,',
+        )
 
     return cases
 
@@ -314,6 +350,9 @@ def _http_method_cases(imported_request):
         case['request_method'] = method
         case['category'] = 'http_method'
         case['description'] = f'Send request using {method} instead of {imported_request.method}'
+        case['human_description'] = (
+            f'Verify API where user sent the request using {method} instead of {imported_request.method}'
+        )
         cases.append(case)
     return cases
 
@@ -336,6 +375,7 @@ def generate_test_cases(imported_request, categories=None, body_field_tests=None
     baseline = _base_case(imported_request)
     baseline['category'] = 'baseline'
     baseline['description'] = 'Baseline (unmodified request)'
+    baseline['human_description'] = 'Verify API returns the expected response for a valid, unmodified request'
     cases.append(baseline)
 
     if isinstance(imported_request.body, dict):

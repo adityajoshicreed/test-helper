@@ -144,6 +144,65 @@ class GenerateTestCasesTests(SimpleTestCase):
         self.assertIn('DELETE', methods)
 
 
+class HumanDescriptionTests(SimpleTestCase):
+    """A QA-readable 'Verify API where ...' name for each generated case --
+    shown as the test case name in the Excel export, where the terse
+    `description` (e.g. "Set field 'name' to null") on its own isn't
+    meaningful to someone reading the sheet."""
+
+    def test_every_generated_case_has_a_non_empty_human_description(self):
+        req = make_request()
+        cases = generate_test_cases(
+            req,
+            categories=['body_whole', 'http_method'],
+            body_field_tests={'name': ['body_field_null', 'body_field_missing', 'body_field_empty', 'body_field_wrong_type']},
+            header_tests={'Authorization': ['header_missing', 'header_empty']},
+        )
+        for case in cases:
+            self.assertTrue(case.get('human_description'), msg=f"missing for {case['category']}: {case.get('description')}")
+
+    def test_baseline_human_description(self):
+        req = make_request()
+        cases = generate_test_cases(req)
+        self.assertIn('Verify API', cases[0]['human_description'])
+
+    def test_body_field_human_descriptions_name_the_field(self):
+        req = make_request()
+        cases = generate_test_cases(req, body_field_tests={
+            'name': ['body_field_null', 'body_field_missing', 'body_field_empty', 'body_field_wrong_type'],
+        })
+        by_category = {c['category']: c['human_description'] for c in cases if c['category'] != 'baseline'}
+        self.assertEqual(by_category['body_field_null'], "Verify API where user sent field 'name' as null")
+        self.assertEqual(
+            by_category['body_field_missing'],
+            "Verify API where user did not send field 'name' in the request",
+        )
+        self.assertEqual(by_category['body_field_empty'], "Verify API where user sent field 'name' as empty")
+        self.assertEqual(
+            by_category['body_field_wrong_type'],
+            "Verify API where user sent field 'name' with an incorrect data type",
+        )
+
+    def test_header_human_descriptions_name_the_header(self):
+        req = make_request()
+        cases = generate_test_cases(req, header_tests={'Authorization': ['header_missing', 'header_empty']})
+        by_category = {c['category']: c['human_description'] for c in cases if c['category'] != 'baseline'}
+        self.assertEqual(
+            by_category['header_missing'],
+            "Verify API where user did not send header 'Authorization' in the request",
+        )
+        self.assertEqual(by_category['header_empty'], "Verify API where user sent header 'Authorization' as empty")
+
+    def test_http_method_human_description_names_both_methods(self):
+        req = make_request(method='POST')
+        cases = generate_test_cases(req, categories=['http_method'])
+        get_case = next(c for c in cases if c['category'] == 'http_method' and c['request_method'] == 'GET')
+        self.assertEqual(
+            get_case['human_description'],
+            'Verify API where user sent the request using GET instead of POST',
+        )
+
+
 class NestedBodyFieldTests(SimpleTestCase):
     def _nested_request(self):
         return make_request(body={
