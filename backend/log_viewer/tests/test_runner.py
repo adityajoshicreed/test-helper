@@ -1,6 +1,6 @@
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
@@ -170,13 +170,52 @@ class DefaultCompiledPatternTests(SimpleTestCase):
         self.assertEqual(groups['thread'], 'nio-8080-exec-1')
         self.assertEqual(groups['logger'], 'c.e.d.controller.OrderController')
         self.assertEqual(groups['message'], 'Received request')
-        parsed = datetime.strptime(groups['timestamp'], compiled.strptime_format)
-        self.assertEqual(parsed, datetime(2024, 1, 15, 10, 23, 45, 123000))
+        parsed = runner._parse_timestamp(groups['timestamp'], compiled.strptime_format)
+        self.assertEqual(parsed, datetime(2024, 1, 15, 10, 23, 45, 123000, tzinfo=dt_timezone.utc))
 
     def test_matches_line_without_pid(self):
         compiled = runner.default_compiled_pattern()
         line = '2024-01-15 10:23:45.999 ERROR  --- [           main] c.e.d.Application : Boom'
         self.assertIsNotNone(compiled.regex.match(line))
+
+    def test_matches_iso8601_timestamp_with_offset(self):
+        # Reported bug: an ISO-8601-with-offset timestamp ('T' separator,
+        # +02:00 offset) wasn't matched by the space-only timestamp regex,
+        # so every line fell through as an unmatched continuation and all
+        # got folded into one entry.
+        compiled = runner.default_compiled_pattern()
+        line = (
+            '2026-08-09T22:01:15.123+02:00  INFO 12345 --- [nio-8080-exec-1] '
+            'com.example.demo.LoggingController      : An INFO Message'
+        )
+        match = compiled.regex.match(line)
+        self.assertIsNotNone(match)
+        groups = match.groupdict()
+        self.assertEqual(groups['level'], 'INFO')
+        self.assertEqual(groups['message'], 'An INFO Message')
+        parsed = runner._parse_timestamp(groups['timestamp'], compiled.strptime_format)
+        self.assertEqual(parsed, datetime(2026, 8, 9, 20, 1, 15, 123000, tzinfo=dt_timezone.utc))
+
+
+class ParseTimestampTests(SimpleTestCase):
+    def test_iso_sentinel_parses_offset_timestamp_and_normalizes_to_utc(self):
+        parsed = runner._parse_timestamp('2026-08-09T22:01:15.123+02:00', runner.ISO_TIMESTAMP_FORMAT)
+        self.assertEqual(parsed, datetime(2026, 8, 9, 20, 1, 15, 123000, tzinfo=dt_timezone.utc))
+
+    def test_iso_sentinel_parses_naive_timestamp_as_utc(self):
+        parsed = runner._parse_timestamp('2024-01-15 10:23:45.123', runner.ISO_TIMESTAMP_FORMAT)
+        self.assertEqual(parsed, datetime(2024, 1, 15, 10, 23, 45, 123000, tzinfo=dt_timezone.utc))
+
+    def test_fixed_strptime_format_still_works(self):
+        parsed = runner._parse_timestamp('2024-01-15,10:23:45', '%Y-%m-%d,%H:%M:%S')
+        self.assertEqual(parsed, datetime(2024, 1, 15, 10, 23, 45, tzinfo=dt_timezone.utc))
+
+    def test_unparseable_timestamp_returns_none(self):
+        self.assertIsNone(runner._parse_timestamp('not-a-timestamp', runner.ISO_TIMESTAMP_FORMAT))
+
+    def test_empty_input_returns_none(self):
+        self.assertIsNone(runner._parse_timestamp('', runner.ISO_TIMESTAMP_FORMAT))
+        self.assertIsNone(runner._parse_timestamp('2024-01-15', None))
 
 
 class ClassifyRequestResponseTests(SimpleTestCase):
@@ -282,3 +321,31 @@ class ParseLogFilesTests(SimpleTestCase):
 
         self.assertTrue(entries[0]['is_request_like'])
         self.assertTrue(entries[1]['is_response_like'])
+
+    def test_iso8601_offset_timestamps_are_parsed_as_separate_entries(self):
+        # Reported bug: with an ISO-8601-with-offset timestamp, none of
+        # these 4 lines matched the (then space-only) default timestamp
+        # regex, so every line fell through as an unmatched continuation
+        # and all 4 got folded into a single entry instead of 4.
+        content = (
+            '2026-08-09T22:01:15.123+02:00  INFO 12345 --- [nio-8080-exec-1] '
+            'com.example.demo.LoggingController      : An INFO Message - default tracking behavior\n'
+            '2026-08-09T22:01:15.124+02:00  DEBUG 12345 --- [nio-8080-exec-1] '
+            'com.example.demo.LoggingController     : A DEBUG Message - helpful for debugging\n'
+            '2026-08-09T22:01:15.124+02:00  WARN 12345 --- [nio-8080-exec-1] '
+            'com.example.demo.LoggingController      : A WARN Message - alert about potential issues\n'
+            '2026-08-09T22:01:15.125+02:00  ERROR 12345 --- [nio-8080-exec-1] '
+            'com.example.demo.LoggingController     : An ERROR Message - critical system failures\n'
+        )
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'app.log')
+            with open(path, 'w') as f:
+                f.write(content)
+            entries, warnings = runner.parse_log_files([path], self._pattern())
+
+        self.assertEqual(warnings, [])
+        self.assertEqual(len(entries), 4)
+        self.assertEqual([e['level'] for e in entries], ['INFO', 'DEBUG', 'WARN', 'ERROR'])
+        self.assertTrue(all(e['timestamp'] is not None for e in entries))
+        self.assertIn('default tracking behavior', entries[0]['message'])
+        self.assertIn('critical system failures', entries[3]['message'])

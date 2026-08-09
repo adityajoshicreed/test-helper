@@ -218,17 +218,43 @@ def compile_pattern(conversion_pattern):
 
 
 _DEFAULT_LINE_RE = re.compile(
-    r'^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+'
+    r'^(?P<timestamp>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}[.,]\d+(?:[+-]\d{2}:?\d{2}|Z)?)\s+'
     r'(?P<level>[A-Z]+)\s+\d*\s*---\s*\[(?P<thread>[^\]]*)\]\s+'
     r'(?P<logger>\S+)\s*:\s*(?P<message>.*)$'
 )
+
+# strptime_format sentinel meaning "parse with datetime.fromisoformat instead
+# of a fixed strptime format" -- the default pattern's timestamp needs to
+# tolerate both Spring Boot's classic 'yyyy-MM-dd HH:mm:ss.SSS' (space, no
+# offset) and the increasingly common ISO-8601-with-offset style
+# ('yyyy-MM-ddTHH:mm:ss.SSSXXX'), which a single fixed format can't parse.
+ISO_TIMESTAMP_FORMAT = 'iso'
 
 
 def default_compiled_pattern():
     """Spring Boot's actual default Logback console/file pattern -- used
     whenever no log4j XML is given, the XML has no usable pattern, or the
     extracted pattern turns out to be uncompilable."""
-    return CompiledPattern(regex=_DEFAULT_LINE_RE, strptime_format='%Y-%m-%d %H:%M:%S.%f')
+    return CompiledPattern(regex=_DEFAULT_LINE_RE, strptime_format=ISO_TIMESTAMP_FORMAT)
+
+
+def _parse_timestamp(raw_timestamp, strptime_format):
+    """Parses a captured timestamp string using either a fixed strptime
+    format or (see ISO_TIMESTAMP_FORMAT) datetime.fromisoformat. Normalizes
+    to UTC either way: an offset-bearing timestamp is converted, one with no
+    offset/timezone info of its own is assumed to already be UTC rather than
+    saved as a naive datetime (USE_TZ=True) or guessing the server's local
+    zone. Returns None if parsing fails for any reason."""
+    if not raw_timestamp or not strptime_format:
+        return None
+    try:
+        if strptime_format == ISO_TIMESTAMP_FORMAT:
+            parsed = datetime.fromisoformat(raw_timestamp.replace(',', '.'))
+        else:
+            parsed = datetime.strptime(raw_timestamp, strptime_format)
+    except ValueError:
+        return None
+    return parsed.astimezone(dt_timezone.utc) if parsed.tzinfo else parsed.replace(tzinfo=dt_timezone.utc)
 
 
 _REQUEST_METHOD_RE = re.compile(r'^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\S+', re.IGNORECASE)
@@ -285,20 +311,9 @@ def parse_log_files(log_paths, compiled_pattern):
                             truncated = True
                             break
                         groups = match.groupdict()
-                        raw_timestamp = groups.get('timestamp')
-                        parsed_timestamp = None
-                        if raw_timestamp and compiled_pattern.strptime_format:
-                            try:
-                                parsed_timestamp = datetime.strptime(
-                                    raw_timestamp, compiled_pattern.strptime_format
-                                )
-                                # Log timestamps carry no timezone info of
-                                # their own -- assume UTC rather than saving
-                                # a naive datetime (USE_TZ=True) or guessing
-                                # the server's local zone.
-                                parsed_timestamp = parsed_timestamp.replace(tzinfo=dt_timezone.utc)
-                            except ValueError:
-                                parsed_timestamp = None
+                        parsed_timestamp = _parse_timestamp(
+                            groups.get('timestamp'), compiled_pattern.strptime_format
+                        )
                         pending = {
                             'seq': seq,
                             'source_file': basename,
