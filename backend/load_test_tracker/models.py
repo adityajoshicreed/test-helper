@@ -51,7 +51,7 @@ class LoadTestResult(models.Model):
     planned_test = models.OneToOneField(PlannedLoadTest, related_name='result', on_delete=models.CASCADE)
 
     jmeter_csv_filename = models.CharField(max_length=255)
-    server_metrics_csv_filename = models.CharField(max_length=255)
+    server_metrics_csv_filename = models.CharField(max_length=255, blank=True, default='')
 
     sample_count = models.IntegerField(default=0)
     error_count = models.IntegerField(default=0)

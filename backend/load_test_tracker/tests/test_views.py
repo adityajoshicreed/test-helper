@@ -141,11 +141,23 @@ class RecordLoadTestResultViewTests(TestCase):
         self.planned_test.refresh_from_db()
         self.assertEqual(self.planned_test.status, PlannedLoadTest.STATUS_RECORDED)
 
-    def test_missing_files_returns_400(self):
+    def test_missing_jmeter_file_returns_400(self):
         response = self.client.post(
             f'/api/load-tests/tests/{self.planned_test.id}/record/', {}, format='multipart'
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_record_without_server_metrics_csv_succeeds(self):
+        response = self.client.post(
+            f'/api/load-tests/tests/{self.planned_test.id}/record/',
+            {'jmeter_csv': csv_file('jmeter.csv', JMETER_CSV)},
+            format='multipart',
+        )
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertEqual(body['status'], 'recorded')
+        self.assertEqual(body['result']['sample_count'], 2)
+        self.assertEqual(body['result']['server_metrics_csv_filename'], '')
 
     def test_malformed_csv_returns_400_and_does_not_record(self):
         response = self.client.post(

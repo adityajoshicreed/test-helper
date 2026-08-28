@@ -52,6 +52,28 @@ class ParseJmeterCsvTests(SimpleTestCase):
             runner.parse_jmeter_csv(csv_file('r.csv', text))
         self.assertIn('more than 5 rows', str(ctx.exception))
 
+    def test_large_file_is_streamed_not_loaded_whole(self):
+        # A big-ish file (well past the in-memory upload threshold isn't
+        # practical to test in a unit test) should still parse correctly
+        # end-to-end via the streaming decoder, without materializing the
+        # whole file as one string first.
+        text = JMETER_HEADER + ''.join(jmeter_row(i * 1000, 100) for i in range(50_000))
+        samples = runner.parse_jmeter_csv(csv_file('big.csv', text))
+        self.assertEqual(len(samples), 50_000)
+
+    def test_bom_prefixed_header_is_stripped_via_streaming_decode(self):
+        text = JMETER_HEADER + jmeter_row(0, 100)
+        samples = runner.parse_jmeter_csv(
+            SimpleUploadedFile('r.csv', text.encode('utf-8-sig'), content_type='text/csv')
+        )
+        self.assertEqual(len(samples), 1)
+
+    def test_invalid_utf8_bytes_raise_preflight_error(self):
+        raw = b'timeStamp,elapsed,label,responseCode,success\xff\xfe\n1000,100,GET /x,200,true\n'
+        with self.assertRaises(runner.PreflightError) as ctx:
+            runner.parse_jmeter_csv(SimpleUploadedFile('r.csv', raw, content_type='text/csv'))
+        self.assertIn('not a valid UTF-8', str(ctx.exception))
+
 
 class ParseServerMetricsCsvTests(SimpleTestCase):
     def test_parses_happy_path_with_epoch_seconds(self):
@@ -206,5 +228,17 @@ class RecordResultTests(TestCase):
 
         self.assertEqual(LoadTestResult.objects.filter(planned_test=planned_test).count(), 1)
         self.assertEqual(result.sample_count, 2)
+        planned_test.refresh_from_db()
+        self.assertEqual(planned_test.status, PlannedLoadTest.STATUS_RECORDED)
+
+    def test_server_metrics_file_is_optional(self):
+        planned_test = self._make_planned_test()
+        jmeter_csv = csv_file('jmeter.csv', JMETER_HEADER + jmeter_row(0, 100) + jmeter_row(1000, 200))
+
+        result = runner.record_result(planned_test, jmeter_csv, None)
+
+        self.assertEqual(result.sample_count, 2)
+        self.assertEqual(result.server_metrics_csv_filename, '')
+        self.assertEqual(result.cpu_ram_series, [])
         planned_test.refresh_from_db()
         self.assertEqual(planned_test.status, PlannedLoadTest.STATUS_RECORDED)
