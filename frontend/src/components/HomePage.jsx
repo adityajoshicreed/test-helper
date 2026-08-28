@@ -49,11 +49,11 @@ const TOOL_CATALOG = [
     available: true,
   },
   {
-    id: 'test-case-creator',
-    name: 'Test Case Creator',
+    id: 'manual-test-cases',
+    name: 'Manual Test Case Creator',
     icon: '📝',
-    description: 'Generate structured test cases from requirements or user stories.',
-    available: false,
+    description: 'Hand-author test cases and their steps in the same format as the Karate Test Case Generator, then export to Excel.',
+    available: true,
   },
   {
     id: 'test-data-generator',

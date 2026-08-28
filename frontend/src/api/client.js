@@ -207,3 +207,39 @@ export function listLogEntries(jobId, params = {}) {
   ).toString();
   return request(`/logs/jobs/${jobId}/entries/${query ? `?${query}` : ''}`);
 }
+
+export function createManualTestSuite(name) {
+  return request('/manual-tests/suites/', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function listManualTestSuites() {
+  return request('/manual-tests/suites/');
+}
+
+export function getManualTestSuite(id) {
+  return request(`/manual-tests/suites/${id}/`);
+}
+
+export function addManualTestCase(suiteId, payload) {
+  return request(`/manual-tests/suites/${suiteId}/cases/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function addManualTestStep(caseId, payload) {
+  return request(`/manual-tests/cases/${caseId}/steps/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function exportManualTestSuiteExcel(suiteId, excelPath) {
+  return request(`/manual-tests/suites/${suiteId}/export/`, {
+    method: 'POST',
+    body: JSON.stringify({ excel_path: excelPath }),
+  });
+}

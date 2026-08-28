@@ -26,4 +26,5 @@ urlpatterns = [
     path('api/credential-tests/', include('credential_tester.urls')),
     path('api/load-tests/', include('load_test_tracker.urls')),
     path('api/logs/', include('log_viewer.urls')),
+    path('api/manual-tests/', include('manual_test_cases.urls')),
 ]

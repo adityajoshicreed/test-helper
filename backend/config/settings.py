@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'credential_tester',
     'load_test_tracker',
     'log_viewer',
+    'manual_test_cases',
 ]
 
 MIDDLEWARE = [

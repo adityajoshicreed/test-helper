@@ -7,6 +7,7 @@ import JmeterReportTool from './tools/JmeterReportTool';
 import KarateTestCaseTool from './tools/KarateTestCaseTool';
 import LoadTestTrackerTool from './tools/LoadTestTrackerTool';
 import LogViewerTool from './tools/LogViewerTool';
+import ManualTestCaseTool from './tools/ManualTestCaseTool';
 
 const TOOLS = {
   'api-tester': { name: 'API Tester', component: ApiTesterTool },
@@ -16,6 +17,7 @@ const TOOLS = {
   'credential-tester': { name: 'Expiring Credential Tester', component: CredentialExpiryTester },
   'load-test-tracker': { name: 'Load Test Tracker', component: LoadTestTrackerTool },
   'log-viewer': { name: 'Spring Boot Log Viewer', component: LogViewerTool },
+  'manual-test-cases': { name: 'Manual Test Case Creator', component: ManualTestCaseTool },
 };
 
 export default function App() {
