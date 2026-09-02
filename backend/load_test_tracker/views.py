@@ -87,9 +87,9 @@ class RecordLoadTestResultView(APIView):
 
         jmeter_file = request.FILES.get('jmeter_csv')
         server_metrics_file = request.FILES.get('server_metrics_csv')
-        if not jmeter_file or not server_metrics_file:
+        if not jmeter_file:
             return Response(
-                {'error': 'Provide both "jmeter_csv" and "server_metrics_csv" files.'},
+                {'error': 'Provide the "jmeter_csv" file.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

@@ -31,12 +31,19 @@ class PreflightError(ValueError):
     message meant to be shown directly to the user."""
 
 
-def _decode(uploaded_file):
-    raw = uploaded_file.read()
-    try:
-        return raw.decode('utf-8-sig')
-    except UnicodeDecodeError as exc:
-        raise PreflightError(f"'{uploaded_file.name}' is not a valid UTF-8 text/CSV file.") from exc
+def _text_stream(uploaded_file):
+    """Wraps the uploaded file so it's decoded incrementally (line by line)
+    rather than read into memory in one shot. JMeter results files for a
+    long or high-throughput run can be very large, and the previous
+    `.read().decode(...)` approach had to hold the entire file as bytes and
+    then again as a decoded string before parsing a single row -- doubling
+    memory use and delaying the MAX_CSV_ROWS cap below until the whole file
+    had already been read in."""
+    return io.TextIOWrapper(uploaded_file, encoding='utf-8-sig', newline='')
+
+
+def _decode_error(uploaded_file):
+    return PreflightError(f"'{uploaded_file.name}' is not a valid UTF-8 text/CSV file.")
 
 
 def _find_column(fieldnames, *needles):
@@ -54,8 +61,11 @@ def parse_jmeter_csv(uploaded_file):
     """Returns a list of {timestamp_ms, elapsed_ms, success, label,
     response_code} dicts, one per HTTP sample, in whatever order the file
     had them (bucket_series sorts by time itself)."""
-    reader = csv.DictReader(io.StringIO(_decode(uploaded_file)))
-    fieldnames = reader.fieldnames or []
+    reader = csv.DictReader(_text_stream(uploaded_file))
+    try:
+        fieldnames = reader.fieldnames or []
+    except UnicodeDecodeError as exc:
+        raise _decode_error(uploaded_file) from exc
 
     timestamp_col = _find_column(fieldnames, 'timestamp') or _find_column(fieldnames, 'time')
     elapsed_col = _find_column(fieldnames, 'elapsed')
@@ -74,21 +84,24 @@ def parse_jmeter_csv(uploaded_file):
     response_code_col = _find_column(fieldnames, 'responsecode')
 
     samples = []
-    for i, row in enumerate(reader, start=2):  # row 1 is the header
-        if len(samples) > MAX_CSV_ROWS:
-            raise PreflightError(f"JMeter CSV has more than {MAX_CSV_ROWS} rows -- too large to process.")
-        try:
-            timestamp_ms = float(row[timestamp_col])
-            elapsed_ms = float(row[elapsed_col])
-        except (TypeError, ValueError):
-            raise PreflightError(f"Row {i}: could not parse '{timestamp_col}'/'{elapsed_col}' as numbers.")
-        samples.append({
-            'timestamp_ms': timestamp_ms,
-            'elapsed_ms': elapsed_ms,
-            'success': (row.get(success_col) or '').strip().lower() == 'true',
-            'label': (row.get(label_col) or '') if label_col else '',
-            'response_code': (row.get(response_code_col) or '') if response_code_col else '',
-        })
+    try:
+        for i, row in enumerate(reader, start=2):  # row 1 is the header
+            if len(samples) > MAX_CSV_ROWS:
+                raise PreflightError(f"JMeter CSV has more than {MAX_CSV_ROWS} rows -- too large to process.")
+            try:
+                timestamp_ms = float(row[timestamp_col])
+                elapsed_ms = float(row[elapsed_col])
+            except (TypeError, ValueError):
+                raise PreflightError(f"Row {i}: could not parse '{timestamp_col}'/'{elapsed_col}' as numbers.")
+            samples.append({
+                'timestamp_ms': timestamp_ms,
+                'elapsed_ms': elapsed_ms,
+                'success': (row.get(success_col) or '').strip().lower() == 'true',
+                'label': (row.get(label_col) or '') if label_col else '',
+                'response_code': (row.get(response_code_col) or '') if response_code_col else '',
+            })
+    except UnicodeDecodeError as exc:
+        raise _decode_error(uploaded_file) from exc
 
     if not samples:
         raise PreflightError('JMeter CSV has no data rows.')
@@ -111,8 +124,11 @@ def _parse_timestamp_seconds(value):
 
 def parse_server_metrics_csv(uploaded_file):
     """Returns a list of {timestamp_s, cpu_percent, ram_percent} dicts."""
-    reader = csv.DictReader(io.StringIO(_decode(uploaded_file)))
-    fieldnames = reader.fieldnames or []
+    reader = csv.DictReader(_text_stream(uploaded_file))
+    try:
+        fieldnames = reader.fieldnames or []
+    except UnicodeDecodeError as exc:
+        raise _decode_error(uploaded_file) from exc
 
     timestamp_col = _find_column(fieldnames, 'timestamp') or _find_column(fieldnames, 'time')
     cpu_col = _find_column(fieldnames, 'cpu')
@@ -129,16 +145,19 @@ def parse_server_metrics_csv(uploaded_file):
         )
 
     rows = []
-    for i, row in enumerate(reader, start=2):
-        if len(rows) > MAX_CSV_ROWS:
-            raise PreflightError(f"Server metrics CSV has more than {MAX_CSV_ROWS} rows -- too large to process.")
-        timestamp_s = _parse_timestamp_seconds(row[timestamp_col])
-        try:
-            cpu_percent = float(row[cpu_col])
-            ram_percent = float(row[ram_col])
-        except (TypeError, ValueError):
-            raise PreflightError(f"Row {i}: could not parse '{cpu_col}'/'{ram_col}' as numbers.")
-        rows.append({'timestamp_s': timestamp_s, 'cpu_percent': cpu_percent, 'ram_percent': ram_percent})
+    try:
+        for i, row in enumerate(reader, start=2):
+            if len(rows) > MAX_CSV_ROWS:
+                raise PreflightError(f"Server metrics CSV has more than {MAX_CSV_ROWS} rows -- too large to process.")
+            timestamp_s = _parse_timestamp_seconds(row[timestamp_col])
+            try:
+                cpu_percent = float(row[cpu_col])
+                ram_percent = float(row[ram_col])
+            except (TypeError, ValueError):
+                raise PreflightError(f"Row {i}: could not parse '{cpu_col}'/'{ram_col}' as numbers.")
+            rows.append({'timestamp_s': timestamp_s, 'cpu_percent': cpu_percent, 'ram_percent': ram_percent})
+    except UnicodeDecodeError as exc:
+        raise _decode_error(uploaded_file) from exc
 
     if not rows:
         raise PreflightError('Server metrics CSV has no data rows.')
@@ -255,19 +274,22 @@ def bucket_series(samples, metrics, bucket_count_target=BUCKET_COUNT_TARGET):
     return response_time_series, throughput_series, cpu_ram_series, warnings
 
 
-def record_result(planned_test, jmeter_file, server_metrics_file):
-    """Parses both uploaded files and creates the (one-time) LoadTestResult
-    for `planned_test`. Caller is responsible for checking a result doesn't
-    already exist -- this always creates a new row."""
+def record_result(planned_test, jmeter_file, server_metrics_file=None):
+    """Parses the uploaded file(s) and creates the (one-time) LoadTestResult
+    for `planned_test`. The server metrics CSV is optional -- some runs
+    don't have a CPU/RAM capture, and the result is still worth recording
+    without one, just without a CPU/RAM chart. Caller is responsible for
+    checking a result doesn't already exist -- this always creates a new
+    row."""
     samples = parse_jmeter_csv(jmeter_file)
-    metrics = parse_server_metrics_csv(server_metrics_file)
+    metrics = parse_server_metrics_csv(server_metrics_file) if server_metrics_file else []
     aggregates = compute_aggregates(samples)
     response_time_series, throughput_series, cpu_ram_series, warnings = bucket_series(samples, metrics)
 
     result = LoadTestResult.objects.create(
         planned_test=planned_test,
         jmeter_csv_filename=jmeter_file.name,
-        server_metrics_csv_filename=server_metrics_file.name,
+        server_metrics_csv_filename=server_metrics_file.name if server_metrics_file else '',
         response_time_series=response_time_series,
         throughput_series=throughput_series,
         cpu_ram_series=cpu_ram_series,

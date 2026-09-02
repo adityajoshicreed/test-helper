@@ -150,8 +150,8 @@ function RecordResultForm({ testId, onRecorded }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!jmeterFile || !metricsFile) {
-      setError('Provide both the JMeter results CSV and the server metrics CSV.');
+    if (!jmeterFile) {
+      setError('Provide the JMeter results CSV.');
       return;
     }
     setSubmitting(true);
@@ -175,7 +175,9 @@ function RecordResultForm({ testId, onRecorded }) {
         accept=".csv,.jtl,.log"
         onChange={(e) => setJmeterFile(e.target.files[0] || null)}
       />
-      <label htmlFor={`metrics-csv-${testId}`}>Server metrics CSV (Timestamp, CPU_Usage_Percent, RAM_USAGE_PERCENT)</label>
+      <label htmlFor={`metrics-csv-${testId}`}>
+        Server metrics CSV (optional — Timestamp, CPU_Usage_Percent, RAM_USAGE_PERCENT)
+      </label>
       <input
         id={`metrics-csv-${testId}`}
         type="file"
@@ -266,21 +268,27 @@ function LoadTestDashboard({ test }) {
         ]}
       />
 
-      <p className="group-hint">
-        Server CPU/RAM below is shown on its own timeline (minutes since that file's own first row) — it's
-        not aligned to the JMeter test's clock, since the two are often captured on different machines.
-      </p>
-      <LineChart
-        title="Server CPU / RAM (%)"
-        xLabel="Minutes since metrics capture started"
-        yLabel="%"
-        xFormat={minutesFormat}
-        yFormat={percentFormat}
-        series={[
-          { name: 'CPU', color: 'var(--chart-blue)', points: result.cpu_ram_series.map((p) => ({ x: p.t, y: p.cpu_percent })) },
-          { name: 'RAM', color: 'var(--chart-aqua)', points: result.cpu_ram_series.map((p) => ({ x: p.t, y: p.ram_percent })) },
-        ]}
-      />
+      {result.server_metrics_csv_filename ? (
+        <>
+          <p className="group-hint">
+            Server CPU/RAM below is shown on its own timeline (minutes since that file's own first row) — it's
+            not aligned to the JMeter test's clock, since the two are often captured on different machines.
+          </p>
+          <LineChart
+            title="Server CPU / RAM (%)"
+            xLabel="Minutes since metrics capture started"
+            yLabel="%"
+            xFormat={minutesFormat}
+            yFormat={percentFormat}
+            series={[
+              { name: 'CPU', color: 'var(--chart-blue)', points: result.cpu_ram_series.map((p) => ({ x: p.t, y: p.cpu_percent })) },
+              { name: 'RAM', color: 'var(--chart-aqua)', points: result.cpu_ram_series.map((p) => ({ x: p.t, y: p.ram_percent })) },
+            ]}
+          />
+        </>
+      ) : (
+        <p className="group-hint">No server metrics CSV was recorded for this test.</p>
+      )}
     </div>
   );
 }

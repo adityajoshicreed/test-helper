@@ -179,7 +179,9 @@ export function addPlannedLoadTest(planId, payload) {
 export function recordLoadTestResult(testId, jmeterCsvFile, serverMetricsCsvFile) {
   const formData = new FormData();
   formData.append('jmeter_csv', jmeterCsvFile);
-  formData.append('server_metrics_csv', serverMetricsCsvFile);
+  if (serverMetricsCsvFile) {
+    formData.append('server_metrics_csv', serverMetricsCsvFile);
+  }
   return request(`/load-tests/tests/${testId}/record/`, {
     method: 'POST',
     body: formData,
