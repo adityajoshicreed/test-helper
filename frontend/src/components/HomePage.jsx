@@ -21,6 +21,13 @@ const TOOL_CATALOG = [
     available: true,
   },
   {
+    id: 'karate-ai-testcases',
+    name: 'Karate AI Test Case Generator',
+    icon: '🤖',
+    description: 'Like the Karate Test Case Generator, but a local Ollama model analyses each scenario and writes plain-English step descriptions and expected results instead of generic placeholders.',
+    available: true,
+  },
+  {
     id: 'chain-tester',
     name: 'API Chain Tester',
     icon: '🔗',
