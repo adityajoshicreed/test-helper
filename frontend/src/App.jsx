@@ -4,6 +4,7 @@ import ApiTesterTool from './tools/ApiTesterTool';
 import ChainTesterTool from './tools/ChainTesterTool';
 import CredentialExpiryTester from './tools/CredentialExpiryTester';
 import JmeterReportTool from './tools/JmeterReportTool';
+import KarateAiTestCaseTool from './tools/KarateAiTestCaseTool';
 import KarateTestCaseTool from './tools/KarateTestCaseTool';
 import LoadTestTrackerTool from './tools/LoadTestTrackerTool';
 import LogViewerTool from './tools/LogViewerTool';
@@ -13,6 +14,7 @@ const TOOLS = {
   'api-tester': { name: 'API Tester', component: ApiTesterTool },
   'jmeter-report': { name: 'JMeter Report Generator', component: JmeterReportTool },
   'karate-testcases': { name: 'Karate Test Case Generator', component: KarateTestCaseTool },
+  'karate-ai-testcases': { name: 'Karate AI Test Case Generator', component: KarateAiTestCaseTool },
   'chain-tester': { name: 'API Chain Tester', component: ChainTesterTool },
   'credential-tester': { name: 'Expiring Credential Tester', component: CredentialExpiryTester },
   'load-test-tracker': { name: 'Load Test Tracker', component: LoadTestTrackerTool },

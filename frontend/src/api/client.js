@@ -92,6 +92,21 @@ export function getKarateJob(id) {
   return request(`/karate/jobs/${id}/`);
 }
 
+export function createKarateAiJob(payload) {
+  return request('/karate-ai/jobs/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listKarateAiJobs() {
+  return request('/karate-ai/jobs/');
+}
+
+export function getKarateAiJob(id) {
+  return request(`/karate-ai/jobs/${id}/`);
+}
+
 export function createChain(name) {
   return request('/chains/chains/', {
     method: 'POST',
