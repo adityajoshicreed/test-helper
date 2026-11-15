@@ -27,6 +27,29 @@ A Java 21 / Spring Boot backend is available alongside Django in [`backend-java/
 
 ## Running it
 
+### Start both services with one command
+
+Install **Node.js 22.12+ or 24+ with npm**, plus the runtime for your chosen backend:
+
+- **Java:** a Java 21+ **JDK**, with `JAVA_HOME` set or both `java` and `javac` on `PATH`.
+- **Python:** Python 3.12+ with pip and venv support (`python3` on macOS/Linux, or `py`/`python` on Windows).
+
+From the repository root, provide only the backend type:
+
+| Operating system | Java backend + frontend | Python backend + frontend |
+|---|---|---|
+| macOS / Linux | `./start.sh java` | `./start.sh python` |
+| Windows (Command Prompt or PowerShell) | `.\start.cmd java` | `.\start.cmd python` |
+| Any platform, directly with Node.js | `node scripts/start.cjs java` | `node scripts/start.cjs python` |
+
+The launcher installs frontend dependencies from the lockfile on the first run and refreshes them when the dependency files, Node version, or platform change. For Python it creates `backend/venv/` if needed, installs requirements, and applies database migrations. For Java it downloads checksum-verified Maven if necessary and builds the executable jar. Java startup skips tests; run `./mvnw test` separately from `backend-java/` to execute them.
+
+Both services run in the current terminal: the selected backend on **8000**, and the frontend on **5173**. The launcher checks backend and frontend HTTP readiness. Press **Ctrl+C** to stop both. If either service fails, it stops the other; if either port is already occupied, it exits without terminating the existing service. Stop previously running servers before launching. The scripts also work when invoked by their full path from another directory.
+
+Java's first-run Maven download needs `curl` and `tar` (normally included on macOS and current Windows 10/11); Linux users may need to install them. You can instead set `MAVEN_HOME` to an existing Maven installation. For a custom Maven proxy configuration, set `MAVEN_SETTINGS` to an absolute settings-file path. Otherwise the launcher uses the existing outbound proxy settings without writing credentials. Generated setup caches are ignored under `.dev-cache/` and `backend-java/.mvn/cache/`.
+
+The launcher preserves the separate Java H2 and Python SQLite databases; choosing a different backend does not migrate history. For manual startup or custom ports, follow the instructions below.
+
 Choose either the Java or Python backend on port **8000**, then start the frontend in a separate terminal. The frontend uses the same API routes for both backends.
 
 ### Java backend (port 8000)

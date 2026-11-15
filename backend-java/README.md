@@ -6,6 +6,8 @@ The Django backend remains in `../backend/`. This service does not launch Django
 
 ## Run
 
+To start Java and the frontend together, run `./start.sh java` from the repository root on macOS/Linux, or `.\start.cmd java` on Windows. Install Node.js with npm and a Java 21+ JDK first. The launcher prepares dependencies, builds the jar, checks readiness, and stops both services on Ctrl+C. See the [main running guide](../README.md#start-both-services-with-one-command) for details. The commands below start the Java backend on its own.
+
 Requires a Java **21 JDK**, `curl`, `tar`, and `sha512sum` for the Maven launcher. The launcher downloads Maven 3.9.11 with checksum verification into the ignored `.mvn/cache/` directory; an installed Maven also works with `mvn` instead of `./mvnw`.
 
 ```bash
