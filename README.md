@@ -20,6 +20,10 @@ The frontend is structured so a new tool is just: build a self-contained compone
 - **Backend**: Django + Django REST Framework (SQLite), `backend/`
 - **Frontend**: React + Vite, `frontend/`
 
+## Java Spring Boot backend
+
+A Java 21 / Spring Boot backend is available alongside Django in [`backend-java/`](backend-java/README.md). It implements the existing frontend API routes for all nine tools, including test delays and Excel exports, using a separate persistent H2 database. See its README for build, run, configuration, and migration limitations. Existing Django code and SQLite data remain available.
+
 ## Running it
 
 ### Backend (port 8000)
