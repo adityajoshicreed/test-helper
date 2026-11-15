@@ -18,6 +18,7 @@ import copy
 
 from django.utils import timezone
 
+from apitester.pacing import wait_between_cases
 from apitester.test_executor import execute_test_case
 from apitester.test_generator import _set_at_path
 
@@ -113,11 +114,15 @@ def run_credential_run(run_id):
     the view records new credential values on resume."""
     run = CredentialRun.objects.get(pk=run_id)
 
+    first_case = True
     while True:
         test_case = run.test_cases.filter(executed_at__isnull=True).order_by('id').first()
         if test_case is None:
             break
 
+        if not first_case:
+            wait_between_cases(run.delay_seconds)
+        first_case = False
         case_data = _case_data_from_test_case(test_case)
         apply_credential_values(case_data, run.credential_fields, run.current_values)
 

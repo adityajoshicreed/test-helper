@@ -39,6 +39,7 @@ class CredentialRun(models.Model):
     body_field_tests = models.JSONField(default=dict)
     header_tests = models.JSONField(default=dict)
     verify_ssl = models.BooleanField(default=True)
+    delay_seconds = models.FloatField(default=0)
 
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default=STATUS_PENDING)
     pause_count = models.IntegerField(default=0)

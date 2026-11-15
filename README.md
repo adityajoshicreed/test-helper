@@ -38,6 +38,10 @@ npm run dev
 
 Then open http://localhost:5173.
 
+## Pacing API tests
+
+API Tester, API Chain Tester, and Expiring Credential Tester include a **Delay between test cases (seconds)** option. Enter 0–60 seconds, including fractional values such as `0.5`; the default is `0` (no delay). The setting is saved with the run and shown in results. Each delay starts after a case finishes and before the next begins, with no wait before the first or after the last. In chains, the wait occurs before the next case’s per-test setup requests; it does not add delays between setup steps. Resuming an expired-credential run retries its pending case immediately, then continues with the saved delay. Existing HTTP 429 retry backoff still applies independently. API clients can supply the numeric `delay_seconds` field when creating a run.
+
 ## What the API Tester tool does
 Open http://localhost:5173, click the "API Tester" card on the home page, then:
 1. Paste a curl command (e.g. copied from your browser's devtools "Copy as cURL") and import it.

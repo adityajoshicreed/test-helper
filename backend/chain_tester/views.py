@@ -15,6 +15,8 @@ from apitester.test_generator import (
     generate_test_cases,
 )
 
+from apitester.pacing import parse_delay_seconds
+
 from .models import ApiChain, ChainRun, ChainStep, ChainTestCase
 from .runner import run_chain
 from .serializers import (
@@ -132,6 +134,11 @@ class CreateChainRunView(APIView):
             )
         final_step = steps[-1]
 
+        try:
+            delay_seconds = parse_delay_seconds(request.data)
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
         requested = request.data.get('categories', [])
         if not isinstance(requested, list):
             return Response(
@@ -156,6 +163,7 @@ class CreateChainRunView(APIView):
             body_field_tests=body_field_tests,
             header_tests=header_tests,
             verify_ssl=verify_ssl,
+            delay_seconds=delay_seconds,
             status=ChainRun.STATUS_RUNNING,
         )
 

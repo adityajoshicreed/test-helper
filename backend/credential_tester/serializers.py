@@ -28,7 +28,7 @@ class CredentialRunSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'raw_curl', 'method', 'url', 'headers', 'body', 'body_raw', 'is_json_body',
             'credential_fields', 'current_values', 'expiration_status_code', 'expiration_message_contains',
-            'categories', 'body_field_tests', 'header_tests', 'verify_ssl',
+            'categories', 'body_field_tests', 'header_tests', 'verify_ssl', 'delay_seconds',
             'status', 'pause_count', 'pause_reason', 'error',
             'created_at', 'completed_at', 'test_cases',
         ]

@@ -41,6 +41,7 @@ class TestRun(models.Model):
     # False skips TLS certificate verification, for targets behind a
     # self-signed or internal-CA certificate.
     verify_ssl = models.BooleanField(default=True)
+    delay_seconds = models.FloatField(default=0)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING
     )

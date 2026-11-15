@@ -36,6 +36,7 @@ export default function TestRunResults({ testRun, onStop, stopping, enableExcelE
   return (
     <div className="test-run-results">
       <h2>Results — Test Run #{testRun.id}</h2>
+      <p className="group-hint">Delay between test cases: {testRun.delay_seconds ?? 0} seconds</p>
 
       {isRunning ? (
         <TestRunProgress testRun={testRun} onStop={onStop} stopping={stopping} />

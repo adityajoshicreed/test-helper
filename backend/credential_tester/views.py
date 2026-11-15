@@ -20,6 +20,8 @@ from apitester.test_generator import (
     header_field_options,
 )
 
+from apitester.pacing import parse_delay_seconds
+
 from .models import CredentialRun, CredentialTestCase
 from .runner import run_credential_run
 from .serializers import CredentialRunListSerializer, CredentialRunSerializer
@@ -172,6 +174,11 @@ class CredentialRunListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        try:
+            delay_seconds = parse_delay_seconds(request.data)
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
         requested = request.data.get('categories', [])
         if not isinstance(requested, list):
             return Response(
@@ -197,6 +204,7 @@ class CredentialRunListCreateView(APIView):
             expiration_message_contains=expiration_message_contains,
             categories=categories, body_field_tests=body_field_tests, header_tests=header_tests,
             verify_ssl=verify_ssl,
+            delay_seconds=delay_seconds,
             status=CredentialRun.STATUS_RUNNING,
         )
 

@@ -99,7 +99,7 @@ class ChainRunSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChainRun
         fields = [
-            'id', 'chain', 'categories', 'body_field_tests', 'header_tests', 'verify_ssl',
+            'id', 'chain', 'categories', 'body_field_tests', 'header_tests', 'verify_ssl', 'delay_seconds',
             'status', 'error', 'created_at', 'completed_at', 'step_results', 'test_cases',
         ]
 

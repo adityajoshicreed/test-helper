@@ -10,6 +10,8 @@ from rest_framework.views import APIView
 
 from karate_tests.runner import PreflightError, build_curl, validate_excel_path, write_excel
 
+from apitester.pacing import parse_delay_seconds, wait_between_cases
+
 from .curl_parser import CurlParseError, parse_curl
 from .models import ImportedRequest, TestCase, TestRun
 from .serializers import (
@@ -37,7 +39,10 @@ def _run_test_cases_in_background(test_run_id, pairs, verify_ssl):
     HTTP call can't be interrupted mid-flight) rather than after every
     remaining case has run."""
     try:
-        for test_case, case_data in pairs:
+        delay_seconds = TestRun.objects.get(pk=test_run_id).delay_seconds
+        for index, (test_case, case_data) in enumerate(pairs):
+            if index:
+                wait_between_cases(delay_seconds)
             if TestRun.objects.filter(pk=test_run_id, stop_requested=True).exists():
                 TestRun.objects.filter(pk=test_run_id).update(
                     status=TestRun.STATUS_STOPPED, completed_at=timezone.now()
@@ -114,6 +119,11 @@ class ImportedRequestDetailView(generics.RetrieveAPIView):
 class CreateTestRunView(APIView):
     def post(self, request, pk):
         imported_request = get_object_or_404(ImportedRequest, pk=pk)
+        try:
+            delay_seconds = parse_delay_seconds(request.data)
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
         requested = request.data.get('categories', [])
         if not isinstance(requested, list):
             return Response(
@@ -135,6 +145,7 @@ class CreateTestRunView(APIView):
             body_field_tests=body_field_tests,
             header_tests=header_tests,
             verify_ssl=verify_ssl,
+            delay_seconds=delay_seconds,
             status=TestRun.STATUS_RUNNING,
         )
 

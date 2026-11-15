@@ -18,6 +18,7 @@ import re
 
 from django.utils import timezone
 
+from apitester.pacing import wait_between_cases
 from apitester.test_executor import execute_test_case, run_and_save
 from apitester.test_generator import _parse_path
 
@@ -170,7 +171,9 @@ def run_chain(chain_run_id, pairs):
             chain_run.save()
             return
 
-    for chain_test_case, case_data in pairs:
+    for index, (chain_test_case, case_data) in enumerate(pairs):
+        if index:
+            wait_between_cases(chain_run.delay_seconds)
         context = dict(base_context)
         refresh_failure = None
         for step in per_test_steps:

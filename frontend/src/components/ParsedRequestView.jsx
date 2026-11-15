@@ -41,6 +41,8 @@ export default function ParsedRequestView({ importedRequest, onRunTests, running
 
   const [bodyFieldSelected, setBodyFieldSelected] = useState(() => defaultSelection(bodyOptions, 'field'));
   const [headerSelected, setHeaderSelected] = useState(() => defaultSelection(headerOptions, 'header'));
+  const [delaySeconds, setDelaySeconds] = useState('0');
+  const validDelay = delaySeconds !== '' && Number.isFinite(Number(delaySeconds)) && Number(delaySeconds) >= 0 && Number(delaySeconds) <= 60;
   const [skipSslVerification, setSkipSslVerification] = useState(false);
   const [blanketSelected, setBlanketSelected] = useState(() => {
     const initial = new Set();
@@ -76,6 +78,7 @@ export default function ParsedRequestView({ importedRequest, onRunTests, running
       body_field_tests,
       header_tests,
       verify_ssl: !skipSslVerification,
+      delay_seconds: Number(delaySeconds),
     });
   }
 
@@ -157,6 +160,13 @@ export default function ParsedRequestView({ importedRequest, onRunTests, running
         </fieldset>
       )}
 
+      <label>
+        Delay between test cases (seconds)
+        <input type="number" min="0" max="60" step="any" value={delaySeconds}
+          disabled={running} onChange={(e) => setDelaySeconds(e.target.value)} />
+      </label>
+      <p className="group-hint">Wait 0–60 seconds after each case before starting the next. Use 0 for no delay.</p>
+
       <label className="ssl-skip-toggle">
         <input
           type="checkbox"
@@ -166,7 +176,7 @@ export default function ParsedRequestView({ importedRequest, onRunTests, running
         Skip SSL certificate verification (for self-signed or internal certificates)
       </label>
 
-      <button className="run-button" disabled={running || totalSelected === 0} onClick={handleRun}>
+      <button className="run-button" disabled={running || totalSelected === 0 || !validDelay} onClick={handleRun}>
         {running ? 'Running tests…' : `Run ${totalSelected} test${totalSelected === 1 ? '' : 's'}`}
       </button>
     </div>
