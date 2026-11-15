@@ -17,7 +17,8 @@ More tools (Test Data Generator, ...) will be added as separate cards on the hom
 The frontend is structured so a new tool is just: build a self-contained component under `frontend/src/tools/`, add it to the `TOOLS` registry in `frontend/src/App.jsx`, and flip its `available` flag to `true` in the catalog in `frontend/src/components/HomePage.jsx`. Each tool owns its own internal navigation/state; `App.jsx` only handles top-level routing between the home page and whichever tool is active. On the backend, each tool that needs one is its own Django app (`apitester/`, `jmeter_reporter/`, `karate_tests/`, `karate_ai_tests/`, `chain_tester/`, `credential_tester/`, `load_test_tracker/`, `log_viewer/`, `manual_test_cases/`) registered in `INSTALLED_APPS` and mounted under its own `/api/<tool>/` prefix in `config/urls.py`.
 
 ## Stack
-- **Backend**: Django + Django REST Framework (SQLite), `backend/`
+- **Java backend**: Java 21 + Spring Boot (H2), `backend-java/`
+- **Python backend**: Django + Django REST Framework (SQLite), `backend/`
 - **Frontend**: React + Vite, `frontend/`
 
 ## Java Spring Boot backend
@@ -26,7 +27,73 @@ A Java 21 / Spring Boot backend is available alongside Django in [`backend-java/
 
 ## Running it
 
-### Backend (port 8000)
+Choose either the Java or Python backend on port **8000**, then start the frontend in a separate terminal. The frontend uses the same API routes for both backends.
+
+### Java backend (port 8000)
+
+Install a **Java 21 JDK** and verify that `java -version` and `javac -version` both report version 21. The included Maven launcher requires `curl`, `tar`, and `sha512sum`; it downloads and verifies Maven automatically. If Maven is already installed, you can use `mvn` instead of `./mvnw`.
+
+From the repository root:
+
+```bash
+cd backend-java
+./mvnw verify
+java -jar target/qa-helper-backend-1.0.0.jar
+```
+
+`verify` runs the Java tests and builds the executable jar. Keep the server running, and check readiness from another terminal:
+
+```bash
+curl --fail http://127.0.0.1:8000/api/health/
+```
+
+Expected response:
+
+```json
+{"status":"ok","backend":"spring-boot"}
+```
+
+For development with Maven, you can also start the service from `backend-java/` using:
+
+```bash
+./mvnw spring-boot:run
+```
+
+Stop the server with **Ctrl+C**. Keep `backend-java/` as the working directory so the H2 database and uploads remain in `backend-java/data/`. Tables initialize automatically; no Python migrations are needed. Java uses a separate database and does not import existing Django SQLite history.
+
+#### Building in the managed cloud environment
+
+If the system JDK is incomplete or Maven needs the environment's proxy and CA settings, use the Linux x86_64 helper instead:
+
+```bash
+cd backend-java
+./tools/cloud-maven.sh verify
+```
+
+The helper requires Python 3 for Maven configuration only. When it installs its own JDK, start the jar with:
+
+```bash
+.mvn/cache/jdk-21.0.9+10/bin/java \
+  -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts \
+  -jar target/qa-helper-backend-1.0.0.jar
+```
+
+If you supplied an existing Java 21 `JAVA_HOME` to the helper, use `"$JAVA_HOME/bin/java"` instead of the cached JDK path. See the [Java backend guide](backend-java/README.md) for proxy, trust store, and configuration details.
+
+#### Using a different port
+
+Stop Django before starting Java on port 8000. To run Java separately on port 8001, execute this from `backend-java/`:
+
+```bash
+PORT=8001 java -jar target/qa-helper-backend-1.0.0.jar
+```
+
+The frontend continues calling port 8000, so use Java on port 8000 when testing it through the existing UI. Other settings include `BIND_ADDRESS`, `JDBC_URL`, `DB_USER`, `DB_PASSWORD`, and `CORS_ORIGINS`; their defaults are listed in the [Java backend guide](backend-java/README.md#configuration-and-data).
+
+JMeter report generation additionally needs a JMeter executable on `PATH` or a supplied `jmeter_bin` path. AI-assisted Karate generation needs a running Ollama service and a model name. These integrations are optional for the other tools.
+
+### Python backend (port 8000)
+
 ```bash
 cd backend
 source venv/bin/activate
@@ -34,9 +101,12 @@ python manage.py runserver 8000
 ```
 
 ### Frontend (port 5173)
+
+From the repository root, in a separate terminal:
+
 ```bash
 cd frontend
-npm install   # first time only
+npm ci   # first time, or after dependencies change
 npm run dev
 ```
 
