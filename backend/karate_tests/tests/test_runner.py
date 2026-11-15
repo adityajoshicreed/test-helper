@@ -294,6 +294,59 @@ class BuildTestCasesTests(SimpleTestCase):
         self.assertEqual(runner.build_test_cases(feature), [])
 
 
+class PlainTextResponseTests(SimpleTestCase):
+    def _scenario(self, body, separate=False):
+        headers = (
+            'request:\n1 > GET http://example.com/health\n\n'
+            'response time in milliseconds: 1\n'
+            '1 < 200 GET http://example.com/health\n'
+            '1 < Content-Type: text/plain\n'
+        )
+        segments = [{'text': headers}, {'text': body}] if separate else [{'text': headers + body}]
+        return {'name': 'health check', 'steps': [
+            {'keyword': 'method', 'text': 'get', 'logSegments': segments},
+        ]}
+
+    def test_non_json_bodies_in_combined_and_separate_text_segments(self):
+        for body in ('OK', '\nservice ready\nsecond line\n', '<html>healthy</html>', '  spaced text  '):
+            for separate in (False, True):
+                with self.subTest(body=body, separate=separate):
+                    step = runner.extract_api_steps(self._scenario(body, separate))[0]
+                    self.assertEqual(step['response_body'], body.strip('\r\n'))
+                    self.assertEqual(step['status_code'], '200')
+
+    def test_empty_response_remains_empty(self):
+        step = runner.extract_api_steps(self._scenario('\n'))[0]
+        self.assertIsNone(step['response_body'])
+
+    def test_code_segment_remains_authoritative(self):
+        scenario = self._scenario('\n')
+        scenario['steps'][0]['logSegments'].append({'code': '{"ok": true}'})
+        self.assertEqual(runner.extract_api_steps(scenario)[0]['response_body'], '{"ok": true}')
+
+    def test_plain_text_reaches_expected_and_actual_excel_cells(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = os.path.join(directory, 'report.html')
+            with open(report, 'w') as stream:
+                stream.write('<script id="karate-data" type="application/json">' + json.dumps({
+                    'name': 'health', 'scenarios': [self._scenario('\nhealthy\nall systems ready\n')],
+                }) + '</script>')
+            cases = runner.build_test_cases(runner.parse_report_file(report))
+            path = os.path.join(directory, 'cases.xlsx')
+            metadata = {key: '' for key in (
+                'environment', 'pre_requisite', 'created_by', 'sprint', 'lob', 'vertical',
+                'feasible_for_automation', 'test_case_applicability', 'labels', 'test_case_status',
+            )}
+            runner.write_excel(cases, path, **metadata)
+            workbook = load_workbook(path)
+            try:
+                for column in ('I', 'J'):
+                    self.assertEqual(workbook.active[f'{column}2'].value,
+                                     'Response Code: 200\nResponse Body:\nhealthy\nall systems ready')
+            finally:
+                workbook.close()
+
+
 class BuildCurlTests(SimpleTestCase):
     def test_returns_empty_string_without_method_or_url(self):
         self.assertEqual(runner.build_curl(None, None, {}, None), '')

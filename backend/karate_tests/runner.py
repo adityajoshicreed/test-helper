@@ -152,13 +152,27 @@ def _split_request_response(log_segments):
 
     status_code = None
     seen_response_line = False
-    for line in response_text.splitlines():
+    plain_body = []
+    in_body = False
+    for line in response_text.splitlines(keepends=True):
+        if in_body:
+            plain_body.append(line)
+            continue
         m = _RESPONSE_LINE_RE.match(line)
         if not m:
+            if seen_response_line:
+                # JSON/XML bodies are separate code segments, but Karate
+                # leaves plain text in the log text after the response headers.
+                in_body = True
+                plain_body.append(line)
             continue
         if not seen_response_line:
             status_code = m.group(2).split(' ', 1)[0]
             seen_response_line = True
+
+    if response_body is None and plain_body:
+        body = ''.join(plain_body).strip('\r\n')
+        response_body = body if body else None
 
     return method, url, headers, request_body, status_code, response_body
 
