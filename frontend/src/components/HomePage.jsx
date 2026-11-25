@@ -28,6 +28,13 @@ const TOOL_CATALOG = [
     available: true,
   },
   {
+    id: 'karate-passed-report',
+    name: 'Karate Report Filter',
+    icon: '📋',
+    description: 'Create a shareable passed-only copy of an existing Karate v2 HTML report.',
+    available: true,
+  },
+  {
     id: 'chain-tester',
     name: 'API Chain Tester',
     icon: '🔗',

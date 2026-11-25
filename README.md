@@ -13,6 +13,25 @@ A growing collection of QA utilities behind a single home page:
 
 More tools (Test Data Generator, ...) will be added as separate cards on the home page over time.
 
+## Share a passed-only Karate HTML report
+
+In QA Helper, open **Karate Report Filter** and upload a ZIP of the complete Karate
+v2 HTML report folder. Select **Filter report**, then download the filtered ZIP.
+The application processes the ZIP in your browser.
+
+For command-line use, run this from the repository root with Python 3.9 or newer.
+
+```sh
+python3 scripts/karate_passed_report.py /path/to/karate-reports karate-passed-only.zip
+```
+
+You can supply a ZIP of the report folder as input. Use a Karate v2 report with its
+summary, feature pages, and assets. Extract the output ZIP and open
+`karate-summary.html`. The filtered copy preserves the Karate pages and styling,
+updates the summary counts, and includes attachments referenced by passing
+scenarios. The original timeline and raw run exports are omitted.
+The reported duration is the sum of the retained scenario durations.
+
 ## Adding a new tool
 The frontend is structured so a new tool is just: build a self-contained component under `frontend/src/tools/`, add it to the `TOOLS` registry in `frontend/src/App.jsx`, and flip its `available` flag to `true` in the catalog in `frontend/src/components/HomePage.jsx`. Each tool owns its own internal navigation/state; `App.jsx` only handles top-level routing between the home page and whichever tool is active. On the backend, each tool that needs one is its own Django app (`apitester/`, `jmeter_reporter/`, `karate_tests/`, `karate_ai_tests/`, `chain_tester/`, `credential_tester/`, `load_test_tracker/`, `log_viewer/`, `manual_test_cases/`) registered in `INSTALLED_APPS` and mounted under its own `/api/<tool>/` prefix in `config/urls.py`.
 
